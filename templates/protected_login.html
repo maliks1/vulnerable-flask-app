@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Login Terlindungi — SQLi ML Lab</title>
+        <link
+            rel="stylesheet"
+            href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+        />
+        <style>
+            /* ── Base ───────────────────────────────────────────────────── */
+            body {
+                background-color: #0d1117;
+                color: #c9d1d9;
+                font-family: "Segoe UI", system-ui, sans-serif;
+            }
+            a { color: #58a6ff; }
+
+            /* ── Cards ──────────────────────────────────────────────────── */
+            .card {
+                background-color: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 8px;
+            }
+            .card-header {
+                border-bottom: 1px solid #30363d;
+                font-size: 0.9rem;
+                padding: 10px 16px;
+            }
+            .hdr-green  { background: #1a3a2a; color: #56d364; }
+            .hdr-red    { background: #3d1a1a; color: #ff7b72; }
+            .hdr-yellow { background: #2f2400; color: #e3b341; }
+            .hdr-blue   { background: #0d2137; color: #79c0ff; }
+            .hdr-gray   { background: #21262d; color: #8b949e; }
+
+            /* ── Code / pre ─────────────────────────────────────────────── */
+            pre, code {
+                font-family: "Cascadia Code","Fira Code","Consolas",monospace;
+                font-size: 0.82rem;
+            }
+            pre {
+                background: #010409;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                padding: 12px 16px;
+                white-space: pre-wrap;
+                word-break: break-all;
+                color: #c9d1d9;
+                margin-bottom: 0;
+            }
+            code {
+                background: #21262d;
+                color: #79c0ff;
+                padding: 1px 6px;
+                border-radius: 4px;
+            }
+
+            /* ── Form controls ──────────────────────────────────────────── */
+            .form-control {
+                background-color: #010409;
+                border: 1px solid #30363d;
+                color: #c9d1d9;
+                font-family: "Cascadia Code","Fira Code","Consolas",monospace;
+                font-size: 0.88rem;
+                transition: border-color .15s;
+            }
+            .form-control:focus {
+                background-color: #010409;
+                border-color: #58a6ff;
+                color: #c9d1d9;
+                box-shadow: 0 0 0 2px rgba(88,166,255,.25);
+            }
+            .form-control.field-sqli   { border-color: #da3633 !important; box-shadow: 0 0 0 2px rgba(218,54,51,.2) !important; }
+            .form-control.field-legit  { border-color: #2ea043 !important; box-shadow: 0 0 0 2px rgba(46,160,67,.2)  !important; }
+            .form-control::placeholder { color: #3d444d; }
+            label {
+                color: #8b949e;
+                font-size: 0.78rem;
+                text-transform: uppercase;
+                letter-spacing: .07em;
+                margin-bottom: 4px;
+            }
+            .btn-exec {
+                background: #1f6feb;
+                border: 1px solid #388bfd;
+                color: #fff;
+                width: 100%;
+                font-size: 0.9rem;
+                padding: 8px;
+                transition: background .15s;
+            }
+            .btn-exec:hover { background: #388bfd; color: #fff; }
+
+            /* ── Alerts ─────────────────────────────────────────────────── */
+            .alert-danger  { background:#3d1a1a; border-color:#da3633; color:#ff7b72; }
+            .alert-success { background:#1a3a2a; border-color:#2ea043; color:#56d364; }
+            .alert-info    { background:#0d2137; border-color:#1f6feb; color:#79c0ff; }
+            .alert-warning { background:#2f2400; border-color:#d29922; color:#e3b341; }
+
+            /* ── Progress bar ───────────────────────────────────────────── */
+            .progress {
+                background: #21262d;
+                border-radius: 4px;
+                height: 7px;
+            }
+
+            /* ── Badges ─────────────────────────────────────────────────── */
+            .badge-protected {
+                background: #1a3a2a;
+                color: #56d364;
+                border: 1px solid #2ea043;
+                font-size: 0.6em;
+                padding: 3px 10px;
+                border-radius: 20px;
+                vertical-align: middle;
+                letter-spacing: .04em;
+                font-weight: 600;
+            }
+            .badge-sqli-inline {
+                font-size: 0.72rem;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-weight: 600;
+            }
+            .badge-sqli    { background:#3d1a1a; color:#ff7b72; border:1px solid #da3633; }
+            .badge-legit   { background:#1a3a2a; color:#56d364; border:1px solid #2ea043; }
+            .badge-unknown { background:#21262d; color:#8b949e; border:1px solid #30363d; }
+
+            /* ── ML Verdict Banner ──────────────────────────────────────── */
+            .verdict-banner {
+                border-radius: 8px;
+                padding: 14px 18px;
+                margin-bottom: 16px;
+            }
+            .verdict-banner.passed {
+                background: linear-gradient(135deg,#1a3a2a,#0f2318);
+                border: 1px solid #2ea043;
+            }
+            .verdict-banner.blocked-local {
+                background: linear-gradient(135deg,#3d1a1a,#1e0a0a);
+                border: 1px solid #da3633;
+            }
+            .verdict-banner .vb-title {
+                font-size: 1.05rem;
+                font-weight: 700;
+            }
+            .verdict-banner .vb-sub {
+                color: #8b949e;
+                font-size: 0.83rem;
+                margin-top: 4px;
+            }
+
+            /* ── Live ML indicator ──────────────────────────────────────── */
+            #live-indicator {
+                min-height: 28px;
+                transition: opacity .2s;
+                margin-top: 6px;
+            }
+            .live-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 0.78rem;
+                padding: 3px 10px;
+                border-radius: 20px;
+            }
+            .live-chip.sqli  { background:#3d1a1a; color:#ff7b72; border:1px solid #da3633; }
+            .live-chip.legit { background:#1a3a2a; color:#56d364; border:1px solid #2ea043; }
+            .live-chip.idle  { background:#21262d; color:#484f58; border:1px solid #30363d; }
+            .live-dot {
+                width: 7px; height: 7px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .live-chip.sqli  .live-dot { background:#ff7b72; }
+            .live-chip.legit .live-dot { background:#56d364; }
+            .live-chip.idle  .live-dot { background:#484f58; }
+
+            /* ── Proba map rows ─────────────────────────────────────────── */
+            .proba-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 6px;
+                font-size: 0.83rem;
+            }
+            .proba-label { width: 90px; flex-shrink: 0; color: #8b949e; }
+            .proba-bar-wrap {
+                flex: 1;
+                background: #21262d;
+                border-radius: 4px;
+                height: 6px;
+                overflow: hidden;
+            }
+            .proba-bar { height: 100%; border-radius: 4px; transition: width .3s; }
+            .proba-pct { width: 48px; text-align: right; flex-shrink: 0; color: #8b949e; font-size: 0.78rem; }
+
+            /* ── Nav links ──────────────────────────────────────────────── */
+            .nav-links {
+                font-size: 0.83rem;
+                color: #484f58;
+                margin-top: 6px;
+            }
+            .nav-links a { color: #58a6ff; }
+
+            hr { border-color: #30363d; }
+
+            /* ── Shield icon ────────────────────────────────────────────── */
+            .shield-icon {
+                font-size: 2rem;
+                margin-right: 10px;
+                line-height: 1;
+            }
+
+            /* ── Comparison notice ──────────────────────────────────────── */
+            .compare-notice {
+                background: #0d2137;
+                border: 1px solid #1f6feb;
+                border-radius: 8px;
+                padding: 10px 16px;
+                font-size: 0.83rem;
+                color: #79c0ff;
+                margin-bottom: 18px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="container py-5" style="max-width: 820px">
+
+            <!-- ── Page heading ──────────────────────────────────────────── -->
+            <div class="d-flex align-items-center mb-1">
+                <span class="shield-icon">🛡</span>
+                <h2 class="mb-0 mr-3" style="color: #56d364; font-weight: 700">
+                    Login Terlindungi
+                </h2>
+                <span class="badge-protected ml-2">✔ ML NAIVE BAYES AKTIF</span>
+            </div>
+            <p style="color: #484f58; font-size: 0.82rem; margin-bottom: 22px; margin-left: 46px;">
+                Setiap input dicek oleh model <code>model_sqli_nb.pkl</code> sebelum
+                menyentuh database. Payload SQLi akan diblokir secara otomatis.
+            </p>
+
+            <!-- ── Compare notice ────────────────────────────────────────── -->
+            <div class="compare-notice">
+                💡 Ingin melihat perbedaan dengan app rentan?
+                <a href="{{ url_for('compare') }}">Buka Halaman Komparasi →</a>
+            </div>
+
+            <!-- ── Flash messages ────────────────────────────────────────── -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert">
+                    <span style="color:inherit">&times;</span>
+                </button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <!-- ── ML Verdict (setelah POST yang lolos middleware) ────────── -->
+            {% if ml_result %}
+            {% if ml_result.label == 'sqli' %}
+            <!-- Seharusnya tidak terjadi (middleware harusnya blokir duluan),
+                 tapi tampilkan kalau threshold sangat rendah -->
+            <div class="verdict-banner blocked-local mb-4">
+                <div class="vb-title" style="color:#ff7b72;">
+                    ⚠️ Model Mendeteksi SQLi (threshold rendah — diloloskan)
+                </div>
+                <div class="vb-sub">
+                    Label: <strong style="color:#ff7b72;">SQLI</strong> &nbsp;|&nbsp;
+                    Confidence: <strong>{{ (ml_result.confidence * 100) | round(1) }}%</strong>
+                </div>
+            </div>
+            {% else %}
+            <div class="verdict-banner passed mb-4">
+                <div class="vb-title" style="color:#56d364;">
+                    ✅ ML Guard: Input Diloloskan
+                </div>
+                <div class="vb-sub">
+                    Label: <strong style="color:#56d364;">LEGITIMATE</strong> &nbsp;|&nbsp;
+                    Confidence: <strong>{{ (ml_result.confidence * 100) | round(1) }}%</strong>
+                    &nbsp;|&nbsp; Field: <code>{{ ml_result.field }}</code>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ── Probabilitas detail ──────────────────────────────────── -->
+            <div class="card mb-4">
+                <div class="card-header {{ 'hdr-green' if ml_result.label == 'legitimate' else 'hdr-red' }}">
+                    <strong>🤖 Detail Prediksi Model</strong>
+                    <span style="float:right; font-size:0.78rem; color:#8b949e;">
+                        model_sqli_nb.pkl &nbsp;·&nbsp; Naive Bayes
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <!-- Input yang dicek -->
+                    <div style="margin-bottom: 12px;">
+                        <span style="color:#8b949e; font-size:0.78rem; text-transform:uppercase; letter-spacing:.06em;">
+                            Input yang dicek
+                        </span>
+                        <pre class="mt-1" style="font-size:0.85rem;">{{ ml_result.value }}</pre>
+                    </div>
+
+                    <!-- Verdict pill -->
+                    <div class="d-flex align-items-center mb-3" style="gap:10px;">
+                        <span style="color:#8b949e; font-size:0.78rem; text-transform:uppercase; letter-spacing:.06em;">
+                            Prediksi
+                        </span>
+                        <span class="badge-sqli-inline {{ 'badge-sqli' if ml_result.label == 'sqli' else 'badge-legit' }}">
+                            {{ '⚠ SQLI' if ml_result.label == 'sqli' else '✔ LEGITIMATE' }}
+                        </span>
+                        <span style="color:#8b949e; font-size:0.82rem;">
+                            Confidence: <strong style="color:#c9d1d9;">{{ (ml_result.confidence * 100) | round(2) }}%</strong>
+                        </span>
+                    </div>
+
+                    <!-- Progress bars per kelas -->
+                    {% for cls, prob in ml_result.proba_map.items() %}
+                    {% set is_sqli_cls = cls | lower in ['1', '1.0', 'sqli', 'sql injection', 'malicious', 'attack', 'injection', 'abnormal', 'yes', 'true', 'positive'] %}
+                    <div class="proba-row">
+                        <div class="proba-label">
+                            {% if is_sqli_cls %}
+                                <span style="color:#ff7b72;">SQLi</span>
+                            {% else %}
+                                <span style="color:#56d364;">Legitimate</span>
+                            {% endif %}
+                            <span style="color:#484f58; font-size:0.72rem;">({{ cls }})</span>
+                        </div>
+                        <div class="proba-bar-wrap">
+                            <div class="proba-bar"
+                                 style="width:{{ (prob * 100) | round(1) }}%;
+                                        background: {{ '#da3633' if is_sqli_cls else '#2ea043' }};">
+                            </div>
+                        </div>
+                        <div class="proba-pct">{{ (prob * 100) | round(2) }}%</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <hr class="my-4" />
+
+            <!-- ── Login form ─────────────────────────────────────────────── -->
+            <div class="card mb-4">
+                <div class="card-header hdr-blue">
+                    <strong>🔑 Login Form — Dilindungi ML</strong>
+                </div>
+                <div class="card-body">
+                    <form method="POST" autocomplete="off" id="loginForm">
+                        <div class="form-group mb-3">
+                            <label for="username">
+                                Username
+                                <span class="badge-protected ml-1" style="font-size:0.6em; vertical-align:middle;">
+                                    ML CHECKED
+                                </span>
+                            </label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="username"
+                                name="username"
+                                value="{{ raw_username }}"
+                                placeholder="Masukkan username…"
+                                autocomplete="off"
+                                autofocus
+                                oninput="livePredict(this.value)"
+                            />
+                            <!-- Live ML indicator -->
+                            <div id="live-indicator">
+                                <span class="live-chip idle">
+                                    <span class="live-dot"></span>
+                                    Menunggu input…
+                                </span>
+                            </div>
+                            <small style="color:#3d444d; font-size:0.76rem;">
+                                Input dicek ML secara real-time.
+                                Payload SQLi akan diblokir sebelum menyentuh database.
+                            </small>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="password">Password</label>
+                            <input
+                                type="password"
+                                class="form-control"
+                                id="password"
+                                name="password"
+                                value="{{ raw_password }}"
+                                placeholder="Masukkan password…"
+                                autocomplete="off"
+                            />
+                            <small style="color:#3d444d; font-size:0.76rem;">
+                                Login normal: username <code>admin</code> /
+                                password <code>admin123</code>
+                            </small>
+                        </div>
+
+                        <!-- Submit hint -->
+                        <div id="submit-hint" class="mb-2" style="font-size:0.8rem; color:#484f58; display:none;">
+                            ⚠ Input terdeteksi sebagai SQLi — pengiriman akan diblokir middleware.
+                        </div>
+
+                        <button type="submit" class="btn btn-exec" id="submitBtn">
+                            🛡 Login (dengan proteksi ML)
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ── Info: perbedaan dari app rentan ───────────────────────── -->
+            <div class="card mb-4">
+                <div class="card-header hdr-gray">
+                    <strong>🔍 Perbedaan dengan App Rentan (main.py)</strong>
+                </div>
+                <div class="card-body pb-2" style="font-size:0.85rem;">
+                    <table class="table table-sm mb-0" style="color:#c9d1d9; font-size:0.83rem;">
+                        <thead>
+                            <tr>
+                                <th style="background:#21262d; color:#8b949e; border-color:#30363d;">Aspek</th>
+                                <th style="background:#3d1a1a; color:#ff7b72; border-color:#30363d;">⚠ App Rentan (:5001)</th>
+                                <th style="background:#1a3a2a; color:#56d364; border-color:#30363d;">🛡 App Ini (:5002)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="border-color:#30363d; color:#8b949e;">Query SQL</td>
+                                <td style="border-color:#30363d; color:#ff7b72;">f-string langsung → SQLi</td>
+                                <td style="border-color:#30363d; color:#56d364;">Parameterized (? placeholder)</td>
+                            </tr>
+                            <tr>
+                                <td style="border-color:#30363d; color:#8b949e;">Input check</td>
+                                <td style="border-color:#30363d; color:#ff7b72;">Tidak ada</td>
+                                <td style="border-color:#30363d; color:#56d364;">ML Naive Bayes sebelum DB</td>
+                            </tr>
+                            <tr>
+                                <td style="border-color:#30363d; color:#8b949e;">Stacked queries</td>
+                                <td style="border-color:#30363d; color:#ff7b72;">Dieksekusi semua</td>
+                                <td style="border-color:#30363d; color:#56d364;">Diblokir di middleware</td>
+                            </tr>
+                            <tr>
+                                <td style="border-color:#30363d; color:#8b949e;">Error exposure</td>
+                                <td style="border-color:#30363d; color:#ff7b72;">Pesan error SQLite bocor</td>
+                                <td style="border-color:#30363d; color:#56d364;">Tidak ada info sensitif</td>
+                            </tr>
+                            <tr>
+                                <td style="border-color:#30363d; color:#8b949e;">Port</td>
+                                <td style="border-color:#30363d; color:#ff7b72;">:5001</td>
+                                <td style="border-color:#30363d; color:#56d364;">:5002</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ── Nav ───────────────────────────────────────────────────── -->
+            <div class="nav-links text-center">
+                <a href="{{ url_for('compare') }}">🔬 Halaman Komparasi</a>
+                &nbsp;·&nbsp;
+                <a href="http://localhost:5001" target="_blank">⚠ Buka App Rentan (:5001)</a>
+            </div>
+
+        </div><!-- /container -->
+
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+        <script>
+            /* ── Live ML prediction (debounced, 350 ms) ─────────────────── */
+            let _debounceTimer = null;
+
+            function livePredict(value) {
+                clearTimeout(_debounceTimer);
+
+                const indicator = document.getElementById('live-indicator');
+                const submitBtn = document.getElementById('submitBtn');
+                const submitHint = document.getElementById('submit-hint');
+                const inputEl  = document.getElementById('username');
+
+                if (!value || !value.trim()) {
+                    indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot"></span>Menunggu input…</span>';
+                    inputEl.classList.remove('field-sqli', 'field-legit');
+                    submitHint.style.display = 'none';
+                    submitBtn.style.background = '';
+                    return;
+                }
+
+                // Show "checking…" state
+                indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot"></span>Memeriksa…</span>';
+
+                _debounceTimer = setTimeout(function () {
+                    fetch('/api/predict', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: value })
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.error) {
+                            indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot"></span>Error prediksi</span>';
+                            return;
+                        }
+
+                        const pct = (data.confidence * 100).toFixed(1);
+                        inputEl.classList.remove('field-sqli', 'field-legit');
+
+                        if (data.is_sqli) {
+                            indicator.innerHTML =
+                                '<span class="live-chip sqli">' +
+                                '<span class="live-dot"></span>' +
+                                '⚠ SQLI TERDETEKSI — ' + pct + '% confidence' +
+                                '</span>';
+                            inputEl.classList.add('field-sqli');
+                            submitHint.style.display = 'block';
+                            submitBtn.style.background = '#b91c1c';
+                        } else {
+                            indicator.innerHTML =
+                                '<span class="live-chip legit">' +
+                                '<span class="live-dot"></span>' +
+                                '✔ Legitimate — ' + pct + '% confidence' +
+                                '</span>';
+                            inputEl.classList.add('field-legit');
+                            submitHint.style.display = 'none';
+                            submitBtn.style.background = '';
+                        }
+                    })
+                    .catch(function () {
+                        indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot"></span>Gagal menghubungi /api/predict</span>';
+                    });
+                }, 350);
+            }
+        </script>
+    </body>
+</html>

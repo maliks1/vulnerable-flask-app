@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Komparasi — SQLi ML Lab</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+    <style>
+        /* ── Base ──────────────────────────────────────────────────────────── */
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: "Segoe UI", system-ui, sans-serif;
+        }
+        a { color: #58a6ff; }
+
+        /* ── Cards ─────────────────────────────────────────────────────────── */
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+        .card-header {
+            border-bottom: 1px solid #30363d;
+            font-size: 0.88rem;
+            padding: 10px 16px;
+        }
+        .hdr-red    { background: #3d1a1a; color: #ff7b72; }
+        .hdr-green  { background: #1a3a2a; color: #56d364; }
+        .hdr-yellow { background: #2f2400; color: #e3b341; }
+        .hdr-blue   { background: #0d2137; color: #79c0ff; }
+        .hdr-gray   { background: #21262d; color: #8b949e; }
+        .hdr-purple { background: #1e1233; color: #d2a8ff; }
+
+        /* ── Code / pre ─────────────────────────────────────────────────────── */
+        pre, code {
+            font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+            font-size: 0.82rem;
+        }
+        pre {
+            background: #010409;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 10px 14px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #c9d1d9;
+            margin-bottom: 0;
+        }
+        code {
+            background: #21262d;
+            color: #79c0ff;
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+
+        /* ── Form controls ──────────────────────────────────────────────────── */
+        .form-control {
+            background-color: #010409;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+            font-size: 0.88rem;
+        }
+        .form-control:focus {
+            background-color: #010409;
+            border-color: #58a6ff;
+            color: #c9d1d9;
+            box-shadow: 0 0 0 2px rgba(88,166,255,0.25);
+        }
+        .form-control::placeholder { color: #3d444d; }
+        label {
+            color: #8b949e;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 4px;
+        }
+        .btn-exec {
+            background: #1f6feb;
+            border: 1px solid #388bfd;
+            color: #fff;
+            font-size: 0.9rem;
+            padding: 8px 20px;
+        }
+        .btn-exec:hover { background: #388bfd; color: #fff; }
+
+        /* ── Alerts ─────────────────────────────────────────────────────────── */
+        .alert-danger  { background: #3d1a1a; border-color: #da3633; color: #ff7b72; }
+        .alert-success { background: #1a3a2a; border-color: #2ea043; color: #56d364; }
+        .alert-info    { background: #0d2137; border-color: #1f6feb; color: #79c0ff; }
+        .alert-warning { background: #2f2400; border-color: #d29922; color: #e3b341; }
+
+        /* ── Table ──────────────────────────────────────────────────────────── */
+        .table { color: #c9d1d9; font-size: 0.82rem; }
+        .table thead th { background: #21262d; color: #79c0ff; border-color: #30363d; }
+        .table td, .table th { border-color: #30363d !important; }
+        .table tbody tr:hover { background: #1c2128; }
+
+        /* ── Misc ───────────────────────────────────────────────────────────── */
+        hr { border-color: #30363d; }
+        .badge-lab {
+            background: #1f6feb;
+            color: #fff;
+            font-size: 0.55em;
+            padding: 3px 8px;
+            border-radius: 4px;
+            vertical-align: middle;
+            letter-spacing: 0.04em;
+        }
+        .badge-tech {
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: #21262d;
+            color: #8b949e;
+            border: 1px solid #30363d;
+        }
+
+        /* ── Columns ─────────────────────────────────────────────────────────── */
+        .col-vulnerable { border-right: 1px solid #30363d; }
+        @media (max-width: 767px) { .col-vulnerable { border-right: none; border-bottom: 1px solid #30363d; } }
+
+        .col-label-vuln    { color: #ff7b72; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; }
+        .col-label-protect { color: #56d364; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+        /* ── Status banners ──────────────────────────────────────────────────── */
+        .status-blocked {
+            background: linear-gradient(135deg, #3d1a1a, #2a1010);
+            border: 1px solid #da3633;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+        .status-passed {
+            background: linear-gradient(135deg, #1a3a2a, #0f2318);
+            border: 1px solid #2ea043;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+        .status-bypass {
+            background: linear-gradient(135deg, #3d1a1a, #2a1010);
+            border: 1px solid #da3633;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+        .status-nologin {
+            background: linear-gradient(135deg, #21262d, #161b22);
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+
+        /* ── Confidence bar ──────────────────────────────────────────────────── */
+        .confidence-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #21262d;
+            overflow: hidden;
+        }
+        .confidence-fill-sqli   { height: 100%; background: linear-gradient(90deg, #da3633, #ff7b72); border-radius: 4px; }
+        .confidence-fill-legit  { height: 100%; background: linear-gradient(90deg, #2ea043, #56d364); border-radius: 4px; }
+        .confidence-fill-warn   { height: 100%; background: linear-gradient(90deg, #d29922, #e3b341); border-radius: 4px; }
+
+        /* ── Live indicator ──────────────────────────────────────────────────── */
+        #live-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 3px 9px;
+            border-radius: 12px;
+            transition: all 0.25s ease;
+            vertical-align: middle;
+        }
+        .live-sqli  { background: #3d1a1a; color: #ff7b72; border: 1px solid #da3633; }
+        .live-legit { background: #1a3a2a; color: #56d364; border: 1px solid #2ea043; }
+        .live-idle  { background: #21262d; color: #484f58; border: 1px solid #30363d; }
+        .live-loading { background: #0d2137; color: #79c0ff; border: 1px solid #1f6feb; }
+
+        #live-confidence-bar-wrap { margin-top: 5px; }
+
+        /* ── Verdict banner ──────────────────────────────────────────────────── */
+        .verdict-tp { background: linear-gradient(135deg,#1a3a2a,#0f2318); border: 1px solid #2ea043; border-radius: 8px; padding:14px 18px; }
+        .verdict-fp { background: linear-gradient(135deg,#2f2400,#1e1800); border: 1px solid #d29922; border-radius: 8px; padding:14px 18px; }
+        .verdict-fn { background: linear-gradient(135deg,#3d1a1a,#2a1010); border: 1px solid #da3633; border-radius: 8px; padding:14px 18px; }
+        .verdict-tn { background: linear-gradient(135deg,#1a3a2a,#0f2318); border: 1px solid #2ea043; border-radius: 8px; padding:14px 18px; }
+
+        /* ── Inject highlight ────────────────────────────────────────────────── */
+        .inject-val    { background: rgba(255,123,114,0.18); color: #ff7b72; border-bottom: 1px dashed #ff7b72; padding: 0 2px; }
+        .inject-quote  { color: #e3b341; }
+        .inject-static { color: #8b949e; }
+
+        /* ── Proba table ─────────────────────────────────────────────────────── */
+        .proba-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #21262d;
+            font-size: 0.83rem;
+        }
+        .proba-row:last-child { border-bottom: none; }
+
+        /* ── Sidebar nav ─────────────────────────────────────────────────────── */
+        .nav-pills .nav-link { color: #8b949e; font-size: 0.82rem; padding: 4px 10px; }
+        .nav-pills .nav-link:hover { color: #c9d1d9; background: #21262d; }
+        .nav-pills .nav-link.active { background: #1f6feb; color: #fff; }
+    </style>
+</head>
+
+<body>
+<div class="container-fluid py-4 px-3 px-md-4" style="max-width: 1200px;">
+
+    <!-- ── Page heading ────────────────────────────────────────────────────── -->
+    <div class="d-flex align-items-center flex-wrap mb-1">
+        <h2 class="mb-0 mr-3" style="color: #58a6ff; font-weight: 700;">🔬 Komparasi SQLi</h2>
+        <span class="badge-lab mr-2">ML DETECTION LAB</span>
+        <span style="color: #8b949e; font-size: 0.82rem; margin-top: 2px;">Naive Bayes · model_sqli_nb.pkl</span>
+    </div>
+    <p style="color: #484f58; font-size: 0.82rem; margin-bottom: 1.5rem;">
+        Masukkan payload SQL injection lalu klik <strong style="color:#c9d1d9">Analisis</strong>.
+        Kolom kiri menampilkan apa yang terjadi pada <em>app rentan</em>; kolom kanan menampilkan keputusan <em>middleware ML</em>.
+    </p>
+
+    <!-- ── Nav links ────────────────────────────────────────────────────────── -->
+    <ul class="nav nav-pills mb-4">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('protected_login') }}">🛡 Protected Login</a></li>
+        <li class="nav-item"><a class="nav-link active" href="{{ url_for('compare') }}">🔬 Komparasi</a></li>
+        <li class="nav-item"><a class="nav-link" href="http://localhost:5001" target="_blank" rel="noopener">⚠ Vulnerable App ↗</a></li>
+    </ul>
+
+    <!-- ── Input form card ──────────────────────────────────────────────────── -->
+    <div class="card mb-4">
+        <div class="card-header hdr-blue">
+            <strong>⌨ Input Payload</strong>
+            <span style="float:right; font-size:0.75rem; color:#484f58;">Live prediksi saat mengetik · Submit untuk komparasi penuh</span>
+        </div>
+        <div class="card-body">
+            <form method="POST" id="compareForm" autocomplete="off">
+                <div class="row">
+                    <div class="col-md-7">
+                        <div class="form-group mb-3">
+                            <label for="username">
+                                Username (Injection Point)
+                                &nbsp;
+                                <!-- Live badge + confidence bar -->
+                                <span id="live-badge" class="live-idle">···</span>
+                                <span id="live-conf-text" style="font-size:0.72rem; color:#484f58; margin-left:6px;"></span>
+                            </label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="usernameInput"
+                                name="username"
+                                value="{{ result.username if result else '' }}"
+                                placeholder="e.g.  ' OR '1'='1' --  atau  admin"
+                                autofocus
+                            />
+                            <div id="live-confidence-bar-wrap" style="display:none;">
+                                <div class="confidence-bar mt-2">
+                                    <div id="live-conf-fill" class="confidence-fill-legit" style="width:0%"></div>
+                                </div>
+                            </div>
+                            <small style="color:#3d444d; font-size:0.74rem;">
+                                Dimasukkan langsung ke f-string query pada app rentan.
+                                Middleware ML memeriksa field ini sebelum query dieksekusi.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="form-group mb-3">
+                            <label for="password">Password</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="password"
+                                name="password"
+                                value="{{ result.password if result else '' }}"
+                                placeholder="opsional (biarkan kosong untuk bypass)"
+                            />
+                            <small style="color:#3d444d; font-size:0.74rem;">
+                                Login normal: <code>admin</code> / <code>admin123</code>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-exec">
+                    ▶ Analisis &amp; Bandingkan
+                </button>
+                {% if result %}
+                <a href="{{ url_for('compare') }}" class="btn btn-sm ml-2"
+                   style="background:#21262d; border:1px solid #30363d; color:#8b949e; padding:8px 16px;">
+                    ↺ Reset
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- ── Results ──────────────────────────────────────────────────────────── -->
+    {% if result %}
+
+    <!-- ── Verdict banner ───────────────────────────────────────────────────── -->
+    {% set v = result.verdict %}
+    <div class="verdict-{{ v.type[:2] if v.type != 'false_negative' else 'fn' }}
+                {{ 'verdict-tp' if v.type == 'true_positive' else
+                   'verdict-fp' if v.type == 'false_positive' else
+                   'verdict-fn' if v.type == 'false_negative' else
+                   'verdict-tn' }} mb-4">
+        <div class="d-flex align-items-center">
+            <span style="font-size: 1.6rem; margin-right: 12px;">{{ v.icon }}</span>
+            <div>
+                <div style="font-weight: 700; font-size: 1rem;
+                    color: {{ '#56d364' if v.type in ('true_positive','true_negative') else '#e3b341' if v.type == 'false_positive' else '#ff7b72' }};">
+                    {{ v.label }}
+                    <span style="font-weight:400; font-size:0.85rem; color:#8b949e; margin-left:8px;">— Hasil Prediksi Model</span>
+                </div>
+                <div style="color:#8b949e; font-size:0.85rem; margin-top:3px;">{{ v.msg }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Two-column comparison ─────────────────────────────────────────────── -->
+    <div class="row no-gutters">
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- LEFT — VULNERABLE APP                                               -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div class="col-md-6 col-vulnerable pr-md-3 pb-4">
+            <div class="col-label-vuln mb-2">
+                ⚠&nbsp; App Vulnerable
+                <span style="font-weight:400; color:#484f58; font-size:0.73rem; text-transform:none; letter-spacing:0;">
+                    (main.py · port 5001 · tanpa proteksi)
+                </span>
+            </div>
+
+            <!-- Query yang terbentuk -->
+            <div class="card mb-3">
+                <div class="card-header hdr-red">
+                    <strong>📤 Query yang dikonstruksi (f-string)</strong>
+                </div>
+                <div class="card-body p-3">
+                    <pre><span class="inject-static">SELECT * FROM users WHERE username = </span><span class="inject-quote">'</span><span class="inject-val">{{ result.username }}</span><span class="inject-quote">'</span><span class="inject-static"> AND password = </span><span class="inject-quote">'</span><span class="inject-val">{{ result.password }}</span><span class="inject-quote">'</span></pre>
+                </div>
+            </div>
+
+            <!-- Per-statement results -->
+            {% if result.vuln_results %}
+            <h6 style="color:#8b949e; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em;">
+                🗄 Hasil Eksekusi
+                <span class="badge badge-secondary ml-1">{{ result.vuln_results|length }} stmt</span>
+            </h6>
+
+            {% for entry in result.vuln_results %}
+
+                {% if entry.error %}
+                <div class="card mb-2">
+                    <div class="card-header hdr-yellow" style="font-size:0.8rem;">
+                        <strong>⚠ Stmt {{ loop.index }} — SQL Error</strong>
+                    </div>
+                    <div class="card-body p-3">
+                        <pre style="font-size:0.76rem;">{{ entry.stmt }}</pre>
+                        <div class="alert alert-warning mt-2 mb-0" style="font-size:0.82rem;">
+                            <strong>SQLiteError:</strong> {{ entry.error }}
+                        </div>
+                    </div>
+                </div>
+
+                {% elif entry.columns %}
+                <div class="card mb-2">
+                    <div class="card-header hdr-green" style="font-size:0.8rem;">
+                        <strong>✔ Stmt {{ loop.index }} — {{ entry.rows|length }} row(s)</strong>
+                        {% if result.vuln_bypass and loop.first %}
+                        <span class="badge badge-success ml-1" style="background:#2ea043; font-size:0.7rem;">bypass</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body p-0">
+                        <pre class="m-3 mb-2" style="font-size:0.76rem;">{{ entry.stmt }}</pre>
+                        {% if entry.rows %}
+                        <div class="table-responsive px-3 pb-3">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead>
+                                    <tr>{% for col in entry.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in entry.rows %}
+                                    <tr>{% for val in row %}<td>{{ val }}</td>{% endfor %}</tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info mx-3 mb-3" style="font-size:0.82rem;">
+                            Query berhasil — tidak ada baris.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="card mb-2">
+                    <div class="card-header hdr-blue" style="font-size:0.8rem;">
+                        <strong>ℹ Stmt {{ loop.index }} — DML/DDL</strong>
+                    </div>
+                    <div class="card-body p-3">
+                        <pre style="font-size:0.76rem;">{{ entry.stmt }}</pre>
+                        <div class="alert alert-info mt-2 mb-0" style="font-size:0.82rem;">
+                            Dieksekusi.
+                            {% if entry.rowcount is not none and entry.rowcount >= 0 %}
+                            Rows affected: <strong>{{ entry.rowcount }}</strong>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+            {% endfor %}
+            {% endif %}
+
+            <!-- Vuln status -->
+            <div class="mt-3">
+                {% if result.vuln_bypass %}
+                <div class="status-bypass">
+                    <div style="font-weight:700; color:#ff7b72; font-size:0.95rem;">✅ LOGIN BYPASS BERHASIL</div>
+                    <div style="color:#8b949e; font-size:0.82rem; margin-top:3px;">
+                        Query mengembalikan baris → autentikasi terlewati tanpa password yang benar.
+                    </div>
+                </div>
+                {% else %}
+                <div class="status-nologin">
+                    <div style="font-weight:700; color:#8b949e; font-size:0.95rem;">❌ Login Gagal / Tidak Ada Bypass</div>
+                    <div style="color:#484f58; font-size:0.82rem; margin-top:3px;">
+                        Query tidak mengembalikan baris yang memenuhi kondisi login.
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+        </div><!-- /col-vulnerable -->
+
+
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- RIGHT — PROTECTED APP                                               -->
+        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <div class="col-md-6 pl-md-3 pb-4">
+            <div class="col-label-protect mb-2">
+                🛡&nbsp; App Protected
+                <span style="font-weight:400; color:#484f58; font-size:0.73rem; text-transform:none; letter-spacing:0;">
+                    (app_protected.py · port 5002 · Naive Bayes middleware)
+                </span>
+            </div>
+
+            <!-- ML Model Verdict card -->
+            <div class="card mb-3">
+                <div class="card-header {{ 'hdr-red' if result.ml_blocked else 'hdr-green' }}">
+                    <strong>🤖 Hasil Prediksi ML</strong>
+                    <span style="float:right; font-size:0.75rem; color:#8b949e;">model_sqli_nb.pkl</span>
+                </div>
+                <div class="card-body p-3">
+
+                    <!-- Label + confidence -->
+                    <div class="d-flex align-items-center mb-3">
+                        <div style="margin-right: 16px;">
+                            {% if result.ml_blocked %}
+                            <span style="
+                                font-size:1.05rem; font-weight:700; color:#ff7b72;
+                                background:#3d1a1a; border:1px solid #da3633;
+                                padding:4px 12px; border-radius:6px; display:inline-block;">
+                                🔴 SQLi Terdeteksi
+                            </span>
+                            {% else %}
+                            <span style="
+                                font-size:1.05rem; font-weight:700; color:#56d364;
+                                background:#1a3a2a; border:1px solid #2ea043;
+                                padding:4px 12px; border-radius:6px; display:inline-block;">
+                                🟢 Legitimate
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div style="font-size:0.78rem; color:#8b949e;">Confidence</div>
+                            <div style="font-size:1.1rem; font-weight:700;
+                                color: {{ '#ff7b72' if result.ml_blocked else '#56d364' }};">
+                                {{ (result.ml_confidence * 100)|round(2) }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confidence bar -->
+                    <div style="margin-bottom:10px;">
+                        <div class="confidence-bar">
+                            <div class="{{ 'confidence-fill-sqli' if result.ml_blocked else 'confidence-fill-legit' }}"
+                                 style="width: {{ (result.ml_confidence * 100)|int }}%">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Probability map -->
+                    <div style="margin-bottom:4px;">
+                        <div style="font-size:0.73rem; color:#484f58; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:6px;">
+                            Probabilitas per kelas
+                        </div>
+                        {% for cls, prob in result.ml_proba_map.items() %}
+                        <div class="proba-row">
+                            <span>
+                                {% if cls in ('1','1.0') %}
+                                    <span style="color:#ff7b72;">● SQLi</span>
+                                {% elif cls in ('0','0.0') %}
+                                    <span style="color:#56d364;">● Legitimate</span>
+                                {% elif cls|lower in ('sqli','sql injection','malicious','attack','injection','anomaly','abnormal','bad') %}
+                                    <span style="color:#ff7b72;">● {{ cls }}</span>
+                                {% else %}
+                                    <span style="color:#56d364;">● {{ cls }}</span>
+                                {% endif %}
+                            </span>
+                            <span style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-family: monospace; font-size:0.8rem;">{{ (prob * 100)|round(3) }}%</span>
+                                <div class="confidence-bar" style="width:80px;">
+                                    <div style="
+                                        height:100%;
+                                        border-radius:4px;
+                                        width:{{ (prob * 100)|int }}%;
+                                        background: {% if cls in ('1','1.0') or cls|lower in ('sqli','sql injection','malicious','attack','injection','anomaly','abnormal','bad') %}
+                                            linear-gradient(90deg,#da3633,#ff7b72)
+                                        {% else %}
+                                            linear-gradient(90deg,#2ea043,#56d364)
+                                        {% endif %};">
+                                    </div>
+                                </div>
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Middleware Decision -->
+            <div class="card mb-3">
+                <div class="card-header {{ 'hdr-red' if result.ml_blocked else 'hdr-green' }}">
+                    <strong>🚦 Keputusan Middleware</strong>
+                </div>
+                <div class="card-body p-3">
+                    {% if result.ml_blocked %}
+                    <div class="status-blocked">
+                        <div style="font-weight:700; color:#ff7b72; font-size:1rem;">🛡 REQUEST DIBLOKIR</div>
+                        <div style="color:#8b949e; font-size:0.83rem; margin-top:5px;">
+                            before_request hook mendeteksi SQLi pada field
+                            <code>username</code> sebelum query menyentuh database.
+                        </div>
+                        <div style="margin-top:10px; padding:8px 12px; background:#010409; border-radius:6px; border:1px solid #30363d; font-family:monospace; font-size:0.78rem; color:#8b949e;">
+                            <span style="color:#ff7b72;">→ redirect</span>
+                            <span style="color:#e3b341;"> /blocked</span>
+                            <br>
+                            <span style="color:#484f58;">— query TIDAK pernah dieksekusi</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="status-passed">
+                        <div style="font-weight:700; color:#56d364; font-size:1rem;">✅ REQUEST DITERUSKAN</div>
+                        <div style="color:#8b949e; font-size:0.83rem; margin-top:5px;">
+                            Model menganggap input sah. Request diteruskan ke handler login
+                            dengan query <strong>parameterized (aman)</strong>.
+                        </div>
+                        <div style="margin-top:10px; padding:8px 12px; background:#010409; border-radius:6px; border:1px solid #30363d; font-family:monospace; font-size:0.78rem; color:#8b949e;">
+                            <span style="color:#56d364;">SELECT id FROM users</span><br>
+                            <span style="color:#56d364;">WHERE username = <span style="color:#e3b341;">?</span> AND password = <span style="color:#e3b341;">?</span></span><br>
+                            <span style="color:#484f58;">— parameterized · SQLi tidak mungkin</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- False Negative warning -->
+            {% if result.verdict.type == 'false_negative' %}
+            <div class="card mb-3" style="border-color:#da3633;">
+                <div class="card-header hdr-red">
+                    <strong>❌ PERINGATAN: False Negative!</strong>
+                </div>
+                <div class="card-body p-3">
+                    <p style="color:#ff7b72; font-size:0.85rem; margin-bottom:8px;">
+                        Model gagal mendeteksi serangan ini. Payload lolos ke handler login
+                        meski <em>app rentan</em> terbukti bisa di-bypass.
+                    </p>
+                    <p style="color:#8b949e; font-size:0.82rem; margin-bottom:0;">
+                        Ini menunjukkan <strong>celah dalam model</strong> — perlu retrain dengan
+                        dataset yang lebih lengkap atau turunkan threshold confidence.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- False Positive info -->
+            {% if result.verdict.type == 'false_positive' %}
+            <div class="card mb-3" style="border-color:#d29922;">
+                <div class="card-header hdr-yellow">
+                    <strong>⚠ False Positive</strong>
+                </div>
+                <div class="card-body p-3">
+                    <p style="color:#e3b341; font-size:0.85rem; margin-bottom:8px;">
+                        Model memblokir input yang sebenarnya tidak membahayakan database.
+                        Ini dapat mengganggu pengguna sah.
+                    </p>
+                    <p style="color:#8b949e; font-size:0.82rem; margin-bottom:0;">
+                        Pertimbangkan menaikkan <code>threshold</code> di <code>SQLiDetector</code>
+                        untuk mengurangi false alarm.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+        </div><!-- /col-protected -->
+
+    </div><!-- /row -->
+
+    <!-- ── Summary table ──────────────────────────────────────────────────── -->
+    <hr class="my-2" />
+    <div class="card mt-4">
+        <div class="card-header hdr-purple">
+            <strong>📊 Ringkasan Analisis</strong>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0" style="font-size:0.83rem;">
+                <thead>
+                    <tr>
+                        <th style="width:30%;">Metrik</th>
+                        <th>App Rentan</th>
+                        <th>App Terlindungi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="color:#8b949e;">Payload username</td>
+                        <td><code style="color:#ff7b72;">{{ result.username or '(kosong)' }}</code></td>
+                        <td><code style="color:#ff7b72;">{{ result.username or '(kosong)' }}</code></td>
+                    </tr>
+                    <tr>
+                        <td style="color:#8b949e;">Query method</td>
+                        <td><span style="color:#ff7b72;">f-string concat (rentan)</span></td>
+                        <td><span style="color:#56d364;">Parameterized ? (aman)</span></td>
+                    </tr>
+                    <tr>
+                        <td style="color:#8b949e;">ML check</td>
+                        <td><span style="color:#484f58;">—</span></td>
+                        <td>
+                            <span style="color:{{ '#ff7b72' if result.ml_blocked else '#56d364' }};">
+                                {{ result.ml_label|upper }}
+                                ({{ (result.ml_confidence * 100)|round(1) }}%)
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color:#8b949e;">Login bypass</td>
+                        <td>
+                            {% if result.vuln_bypass %}
+                            <span style="color:#ff7b72;">✅ YA — berhasil bypass</span>
+                            {% else %}
+                            <span style="color:#56d364;">❌ TIDAK</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.ml_blocked %}
+                            <span style="color:#56d364;">🛡 Diblokir sebelum eksekusi</span>
+                            {% elif result.vuln_bypass %}
+                            <span style="color:#e3b341;">⚠ Lolos (False Negative!)</span>
+                            {% else %}
+                            <span style="color:#56d364;">✅ Tidak ada bypass</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="color:#8b949e;">Verdict</td>
+                        <td colspan="2">
+                            <strong style="color:{{
+                                '#56d364' if result.verdict.type in ('true_positive','true_negative') else
+                                '#e3b341' if result.verdict.type == 'false_positive' else
+                                '#ff7b72'
+                            }};">
+                                {{ result.verdict.icon }} {{ result.verdict.label }} — {{ result.verdict.msg }}
+                            </strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% endif %}{# /if result #}
+
+    <!-- ── Quick payload examples ─────────────────────────────────────────── -->
+    <div class="card mt-4">
+        <div class="card-header hdr-gray">
+            <strong>⚡ Payload Cepat</strong>
+            <span style="float:right; font-size:0.75rem; color:#484f58;">klik untuk isi form</span>
+        </div>
+        <div class="card-body pb-2">
+            <div class="row">
+                <div class="col-md-6">
+                    <p style="font-size:0.75rem; color:#484f58; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">🔴 SQLi Payloads</p>
+                    {% set sqli_payloads = [
+                        ("Classic bypass",    "' OR '1'='1' --"),
+                        ("Comment bypass",    "admin' --"),
+                        ("UNION-based",       "' UNION SELECT 1,username,password FROM users --"),
+                        ("Schema enum",       "' UNION SELECT name,sql FROM sqlite_master WHERE type='table' --"),
+                        ("Stacked INSERT",    "'; INSERT INTO users(username,password) VALUES('hacked','pw') --"),
+                        ("Boolean blind",     "' AND substr((SELECT password FROM users WHERE username='admin'),1,1)='a' --")
+                    ] %}
+                    {% for label, payload in sqli_payloads %}
+                    <div style="padding:5px 0; border-bottom:1px solid #21262d;">
+                        <span class="badge-tech">{{ label }}</span>
+                        <a href="#" class="payload-fill ml-2"
+                           data-payload="{{ payload }}"
+                           style="font-family:monospace; font-size:0.76rem; color:#8b949e; word-break:break-all;">
+                            {{ payload[:60] }}{% if payload|length > 60 %}…{% endif %}
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <p style="font-size:0.75rem; color:#484f58; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;">🟢 Input Legitimate</p>
+                    {% set legit_payloads = [
+                        ("Login normal",   "admin"),
+                        ("User biasa",     "alice"),
+                        ("Username angka", "user123"),
+                        ("Email format",   "user@example.com"),
+                        ("Nama lengkap",   "John Doe"),
+                        ("Username kosong","")
+                    ] %}
+                    {% for label, payload in legit_payloads %}
+                    <div style="padding:5px 0; border-bottom:1px solid #21262d;">
+                        <span class="badge-tech">{{ label }}</span>
+                        <a href="#" class="payload-fill ml-2"
+                           data-payload="{{ payload }}"
+                           style="font-family:monospace; font-size:0.76rem; color:#8b949e;">
+                            {{ payload if payload else '(kosong)' }}
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /container -->
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script>
+(function () {
+    "use strict";
+
+    var debounceTimer = null;
+    var liveBadge     = document.getElementById("live-badge");
+    var liveConfText  = document.getElementById("live-conf-text");
+    var liveConfFill  = document.getElementById("live-conf-fill");
+    var liveBarWrap   = document.getElementById("live-confidence-bar-wrap");
+    var usernameInput = document.getElementById("usernameInput");
+
+    // ── Live predict as you type ──────────────────────────────────────────────
+    function setLiveBadge(state, label, conf) {
+        liveBadge.className = "live-" + state;
+        liveBadge.textContent = label;
+        if (typeof conf !== "undefined") {
+            liveConfText.textContent = (conf * 100).toFixed(1) + "%";
+            liveConfFill.style.width = Math.round(conf * 100) + "%";
+            liveConfFill.className   = state === "sqli"
+                ? "confidence-fill-sqli"
+                : "confidence-fill-legit";
+            liveBarWrap.style.display = "block";
+        } else {
+            liveConfText.textContent  = "";
+            liveBarWrap.style.display = "none";
+        }
+    }
+
+    function livePredict(value) {
+        if (!value || value.trim() === "") {
+            setLiveBadge("idle", "···");
+            return;
+        }
+        setLiveBadge("loading", "⟳ mendeteksi…");
+
+        fetch("/api/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: value })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.error) {
+                setLiveBadge("idle", "⚠ error");
+                return;
+            }
+            if (data.is_sqli) {
+                setLiveBadge("sqli", "🔴 SQLi", data.confidence);
+            } else {
+                setLiveBadge("legit", "🟢 Legitimate", data.confidence);
+            }
+        })
+        .catch(function () {
+            setLiveBadge("idle", "⚠ offline");
+        });
+    }
+
+    usernameInput.addEventListener("input", function () {
+        clearTimeout(debounceTimer);
+        var val = this.value;
+        debounceTimer = setTimeout(function () {
+            livePredict(val);
+        }, 280);
+    });
+
+    // Trigger on page load if field has value (after form submit)
+    if (usernameInput.value.trim()) {
+        livePredict(usernameInput.value);
+    }
+
+    // ── Quick payload fill ────────────────────────────────────────────────────
+    document.querySelectorAll(".payload-fill").forEach(function (el) {
+        el.addEventListener("click", function (e) {
+            e.preventDefault();
+            usernameInput.value = this.getAttribute("data-payload");
+            usernameInput.dispatchEvent(new Event("input"));
+            usernameInput.focus();
+            usernameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+    });
+
+})();
+</script>
+</body>
+</html>

