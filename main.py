@@ -105,11 +105,14 @@ def login():
       Stacked queries      | '; INSERT INTO users VALUES(99,'hacker','pwned') --
       Schema enumeration   | ' UNION SELECT name,sql FROM sqlite_master --
     """
-    executed_query = None
-    query_results  = []      # list[dict] – one entry per executed statement
-    login_bypass   = False
-    raw_username   = ''
-    raw_password   = ''
+    executed_query     = None
+    auth_status        = 'idle'
+    db_username        = None
+    sql_error_message  = None
+    query_columns      = []
+    query_rows         = []
+    raw_username       = ''
+    raw_password       = ''
 
     if request.method == 'POST':
         raw_username = request.form.get('username', '')
@@ -124,69 +127,55 @@ def login():
         )
         executed_query = login_query
 
-        # ── Execute every statement (stacked query support) ──────────────────
+        # ── Execute vulnerable query directly (single execute path) ──────────
         conn = sql_connect()
         if conn is None:
-            flash('Database connection failed.', 'danger')
+            auth_status = 'error'
+            sql_error_message = 'Database connection failed.'
         else:
             cursor = conn.cursor()
             try:
-                for stmt in parse_statements(login_query):
-                    entry = {
-                        'stmt':     stmt,
-                        'columns':  [],
-                        'rows':     [],
-                        'rowcount': None,
-                        'error':    None,
-                    }
+                print(f"[SQLI EXEC] {login_query}")
+                cursor.execute(login_query)
+                query_columns = [d[0] for d in (cursor.description or [])]
+                query_rows = [list(r) for r in cursor.fetchall()]
 
-                    try:
-                        print(f"[SQLI EXEC] {stmt}")
-                        cursor.execute(stmt)
+                if query_rows:
+                    auth_status = 'success'
+                    first_row = query_rows[0]
 
-                        if cursor.description:
-                            # Result-returning statement (SELECT, PRAGMA, …)
-                            entry['columns'] = [d[0] for d in cursor.description]
-                            entry['rows']    = [list(r) for r in cursor.fetchall()]
-                        else:
-                            # DML / DDL – commit and record affected rows
-                            conn.commit()
-                            entry['rowcount'] = cursor.rowcount
+                    if 'username' in query_columns:
+                        db_username = first_row[query_columns.index('username')]
+                    elif len(first_row) > 1:
+                        db_username = first_row[1]
+                    else:
+                        db_username = first_row[0]
 
-                    except sqlite3.Error as exc:
-                        # !! Error message is exposed verbatim → error-based SQLi
-                        entry['error'] = str(exc)
-                        print(f"[SQL ERROR] {exc}")
+                    db_username = str(db_username)
+                    session['user'] = db_username
+                    flash(f'Login berhasil! Welcome, {db_username}', 'success')
+                else:
+                    auth_status = 'failed'
 
-                    query_results.append(entry)
+            except sqlite3.Error as exc:
+                auth_status = 'error'
+                sql_error_message = str(exc)
+                print(f"[SQL ERROR] {exc}")
 
             finally:
                 cursor.close()
                 conn.close()
 
-        # ── Determine login outcome ──────────────────────────────────────────
-
-        # 1. Legitimate login (hard-coded check)
-        if raw_username == 'admin' and raw_password == 'admin123':
-            session['user'] = 'admin'
-            flash('Login berhasil!', 'success')
-            return redirect(url_for('home'))
-
-        # 2. SQLi bypass – the injected SELECT returned at least one row
-        first_select = next(
-            (e for e in query_results if e['columns'] and not e['error']),
-            None
-        )
-        if first_select and first_select['rows']:
-            login_bypass = True
-
     return render_template(
         'login.html',
-        executed_query = executed_query,
-        query_results  = query_results,
-        login_bypass   = login_bypass,
-        raw_username   = raw_username,
-        raw_password   = raw_password,
+        executed_query    = executed_query,
+        auth_status       = auth_status,
+        db_username       = db_username,
+        sql_error_message = sql_error_message,
+        query_columns     = query_columns,
+        query_rows        = query_rows,
+        raw_username      = raw_username,
+        raw_password      = raw_password,
     )
 
 
