@@ -138,11 +138,11 @@ def login():
                 print(f"[SQLI EXEC] {login_query}")
                 cursor.execute(login_query)
                 query_columns = [d[0] for d in (cursor.description or [])]
-                query_rows = [list(r) for r in cursor.fetchall()]
+                first_row = cursor.fetchone()
 
-                if query_rows:
+                if first_row:
                     auth_status = 'success'
-                    first_row = query_rows[0]
+                    query_rows = [list(first_row)]
 
                     if 'username' in query_columns:
                         db_username = first_row[query_columns.index('username')]
@@ -154,8 +154,10 @@ def login():
                     db_username = str(db_username)
                     session['user'] = db_username
                     flash(f'Login berhasil! Welcome, {db_username}', 'success')
+                    return redirect(url_for('home'))
                 else:
                     auth_status = 'failed'
+                    flash('Login gagal: username/password tidak valid.', 'danger')
 
             except sqlite3.Error as exc:
                 auth_status = 'error'

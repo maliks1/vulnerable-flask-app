@@ -1,322 +1,272 @@
-<!doctype html>
-<html lang="id">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Dashboard — SQLi ML Lab</title>
-        <link
-            rel="stylesheet"
-            href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
-        />
-        <style>
-            /* ── Base ───────────────────────────────────────────────────────── */
-            body {
-                background-color: #0d1117;
-                color: #c9d1d9;
-                font-family: "Segoe UI", system-ui, sans-serif;
-            }
-            a { color: #58a6ff; }
+{% extends "base.html" %}
 
-            /* ── Cards ──────────────────────────────────────────────────────── */
-            .card {
-                background-color: #161b22;
-                border: 1px solid #30363d;
-                border-radius: 8px;
-            }
-            .card-header {
-                border-bottom: 1px solid #30363d;
-                font-size: 0.9rem;
-                padding: 10px 16px;
-            }
-            .hdr-green  { background: #1a3a2a; color: #56d364; }
-            .hdr-blue   { background: #0d2137; color: #79c0ff; }
-            .hdr-gray   { background: #21262d; color: #8b949e; }
-            .hdr-purple { background: #1e1233; color: #d2a8ff; }
+{% block title %}Dashboard — SQLi ML Lab{% endblock %}
 
-            /* ── Code ───────────────────────────────────────────────────────── */
-            code {
-                background: #21262d;
-                color: #79c0ff;
-                padding: 1px 6px;
-                border-radius: 4px;
-                font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
-                font-size: 0.82rem;
-            }
+{% block container_style %}max-width: 900px;{% endblock %}
 
-            /* ── Welcome hero ───────────────────────────────────────────────── */
-            .welcome-hero {
-                background: linear-gradient(135deg, #1a3a2a 0%, #0d2318 100%);
-                border: 1px solid #2ea043;
-                border-radius: 12px;
-                padding: 32px 28px;
-                margin-bottom: 28px;
-            }
-            .welcome-hero .avatar {
-                width: 56px;
-                height: 56px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #1f6feb, #388bfd);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1.6rem;
-                flex-shrink: 0;
-            }
-            .welcome-hero .welcome-title {
-                font-size: 1.4rem;
-                font-weight: 700;
-                color: #56d364;
-            }
-            .welcome-hero .welcome-sub {
-                color: #8b949e;
-                font-size: 0.88rem;
-                margin-top: 3px;
-            }
+{% block head_extra %}
+<style>
+    /* ── Component: Welcome Hero ─────────────────────────────────────────── */
+    .welcome-hero {
+        background: var(--gradient-success);
+        border: 1px solid rgba(63, 185, 80, 0.4);
+        border-radius: 16px;
+        padding: 36px 32px;
+        margin-bottom: 32px;
+        box-shadow: 0 12px 32px rgba(26, 58, 42, 0.2);
+        backdrop-filter: var(--blur-xl);
+    }
+    .welcome-hero .avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--brand-primary), #1f6feb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 16px var(--brand-primary-glow);
+    }
+    .welcome-hero .welcome-title {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #56d364;
+        letter-spacing: -0.01em;
+    }
+    .welcome-hero .welcome-sub {
+        color: var(--text-primary);
+        font-size: 0.95rem;
+        margin-top: 4px;
+        opacity: 0.9;
+    }
 
-            /* ── Stat tiles ─────────────────────────────────────────────────── */
-            .stat-tile {
-                background: #161b22;
-                border: 1px solid #30363d;
-                border-radius: 8px;
-                padding: 18px 20px;
-                text-align: center;
-            }
-            .stat-tile .stat-icon { font-size: 1.7rem; line-height: 1; margin-bottom: 6px; }
-            .stat-tile .stat-val  { font-size: 1.3rem; font-weight: 700; }
-            .stat-tile .stat-lbl  { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.06em; }
+    /* ── Component: Stat Tiles ───────────────────────────────────────────── */
+    .stat-tile {
+        background: var(--bg-card);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        padding: 24px 20px;
+        text-align: center;
+        transition: transform var(--transition-smooth), border-color var(--transition-fast);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        height: 100%;
+    }
+    .stat-tile:hover {
+        transform: translateY(-4px);
+        border-color: rgba(88, 166, 255, 0.3);
+    }
+    .stat-tile .stat-icon { font-size: 2rem; line-height: 1; margin-bottom: 10px; }
+    .stat-tile .stat-val  { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+    .stat-tile .stat-lbl  { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-top: 4px; }
 
-            /* ── Nav links ──────────────────────────────────────────────────── */
-            .nav-card-link {
-                display: flex;
-                align-items: center;
-                gap: 14px;
-                padding: 14px 16px;
-                border: 1px solid #30363d;
-                border-radius: 8px;
-                background: #161b22;
-                text-decoration: none;
-                color: #c9d1d9;
-                transition: background 0.15s, border-color 0.15s;
-                margin-bottom: 10px;
-            }
-            .nav-card-link:hover {
-                background: #21262d;
-                border-color: #58a6ff;
-                text-decoration: none;
-                color: #fff;
-            }
-            .nav-card-link .nc-icon { font-size: 1.4rem; flex-shrink: 0; }
-            .nav-card-link .nc-title { font-weight: 600; font-size: 0.9rem; }
-            .nav-card-link .nc-sub   { font-size: 0.78rem; color: #8b949e; }
+    /* ── Component: Nav Card Links ───────────────────────────────────────── */
+    .nav-card-link {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 20px;
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        background: rgba(22, 27, 34, 0.5);
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: all var(--transition-fast);
+        margin-bottom: 12px;
+    }
+    .nav-card-link:last-child { margin-bottom: 0; }
+    .nav-card-link:hover {
+        background: rgba(33, 38, 45, 0.8);
+        border-color: var(--brand-primary);
+        color: white;
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(88, 166, 255, 0.1);
+    }
+    .nav-card-link .nc-icon { font-size: 1.6rem; flex-shrink: 0; }
+    .nav-card-link .nc-title { font-weight: 700; font-size: 0.95rem; color: white; }
+    .nav-card-link .nc-sub   { font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; }
 
-            /* ── Badges ─────────────────────────────────────────────────────── */
-            .badge-protected {
-                background: #1a3a2a;
-                color: #56d364;
-                border: 1px solid #2ea043;
-                font-size: 0.6em;
-                padding: 3px 10px;
-                border-radius: 20px;
-                vertical-align: middle;
-                letter-spacing: 0.04em;
-                font-weight: 600;
-            }
+    /* ── Component: Session Rows ─────────────────────────────────────────── */
+    .session-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        font-size: 0.88rem;
+    }
+    .session-row:last-child { border-bottom: none; }
+    .session-key { color: var(--text-secondary); font-weight: 500; }
+    .session-val { font-family: "Cascadia Code", monospace; font-size: 0.85rem; color: #79c0ff; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 4px; }
 
-            /* ── Session info ───────────────────────────────────────────────── */
-            .session-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 7px 0;
-                border-bottom: 1px solid #21262d;
-                font-size: 0.84rem;
-            }
-            .session-row:last-child { border-bottom: none; }
-            .session-key { color: #8b949e; }
-            .session-val { font-family: "Cascadia Code", monospace; font-size: 0.8rem; color: #79c0ff; }
+    .btn-logout {
+        background: rgba(33, 38, 45, 0.6);
+        border: 1px solid var(--card-border);
+        color: #ff7b72;
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 8px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+    }
+    .btn-logout:hover {
+        background: var(--brand-danger);
+        color: white;
+        border-color: var(--brand-danger);
+        box-shadow: 0 4px 12px var(--brand-danger-glow);
+    }
+</style>
+{% endblock %}
 
-            /* ── Misc ───────────────────────────────────────────────────────── */
-            hr { border-color: #30363d; }
+{% block content %}
+<!-- ── Page heading ──────────────────────────────────────────────── -->
+<div class="d-flex align-items-center mb-4">
+    <span class="page-title-icon">📊</span>
+    <h2 class="mb-0 mr-3" style="color: #56d364; font-weight: 800;">
+        Dashboard Lab
+    </h2>
+    <span class="badge-protected">🛡 SESI AKTIF</span>
+</div>
 
-            .btn-logout {
-                background: #21262d;
-                border: 1px solid #30363d;
-                color: #ff7b72;
-                font-size: 0.88rem;
-                padding: 7px 18px;
-                border-radius: 6px;
-                cursor: pointer;
-                transition: background 0.15s;
-            }
-            .btn-logout:hover { background: #3d1a1a; border-color: #da3633; }
-        </style>
-    </head>
+<!-- ── Welcome hero ──────────────────────────────────────────────── -->
+<div class="welcome-hero d-flex align-items-center" style="gap: 24px;">
+    <div class="avatar">👤</div>
+    <div>
+        <div class="welcome-title">Selamat datang, {{ username }}!</div>
+        <div class="welcome-sub">
+            Login berhasil masuk melalui <strong style="color: white;">app terlindungi</strong>. <br/>
+            Sistem menggunakan parameterisasi query dan middleware pendeteksi anomali ML aktif.
+        </div>
+    </div>
+</div>
 
-    <body>
-        <div class="container py-5" style="max-width: 860px;">
+<!-- ── Stat tiles ─────────────────────────────────────────────────── -->
+<div class="row mb-5" style="column-gap: 16px; padding: 0 15px;">
+    <div class="col-4 p-0 pr-2">
+        <div class="stat-tile">
+            <div class="stat-icon">🛡</div>
+            <div class="stat-val" style="color: #56d364;">AKTIF</div>
+            <div class="stat-lbl">ML Guard</div>
+        </div>
+    </div>
+    <div class="col-4 p-0 px-1">
+        <div class="stat-tile">
+            <div class="stat-icon">🔒</div>
+            <div class="stat-val" style="color: #79c0ff;">Aman</div>
+            <div class="stat-lbl">Query</div>
+        </div>
+    </div>
+    <div class="col-4 p-0 pl-2">
+        <div class="stat-tile">
+            <div class="stat-icon">🤖</div>
+            <div class="stat-val" style="color: #d2a8ff;">NB</div>
+            <div class="stat-lbl">Model</div>
+        </div>
+    </div>
+</div>
 
-            <!-- ── Page heading ──────────────────────────────────────────────── -->
-            <div class="d-flex align-items-center mb-4">
-                <h2 class="mb-0 mr-3" style="color: #56d364; font-weight: 700;">
-                    Dashboard
-                </h2>
-                <span class="badge-protected">🛡 SESI AKTIF</span>
-            </div>
-
-            <!-- ── Welcome hero ──────────────────────────────────────────────── -->
-            <div class="welcome-hero d-flex align-items-center" style="gap: 20px;">
-                <div class="avatar">👤</div>
-                <div>
-                    <div class="welcome-title">Selamat datang, {{ username }}!</div>
-                    <div class="welcome-sub">
-                        Login berhasil melalui <strong style="color: #c9d1d9;">app terlindungi</strong>
-                        — query menggunakan parameterized placeholder,
-                        middleware ML Naive Bayes aktif.
-                    </div>
+<!-- ── Navigasi Cepat ─────────────────────────────────────────────── -->
+<div class="card mb-5">
+    <div class="card-header hdr-blue">
+        <span style="font-size: 1.1em; margin-right: 6px;">🔗</span> Navigasi Modul Lab
+    </div>
+    <div class="card-body p-4">
+        <a class="nav-card-link" href="{{ url_for('compare') }}">
+            <span class="nc-icon">🔬</span>
+            <div>
+                <div class="nc-title">Halaman Komparasi Visual</div>
+                <div class="nc-sub">
+                    Bandingkan kode rentan vs kode yang dilindungi secara berdampingan. Periksa metil True/False Positive.
                 </div>
             </div>
+        </a>
 
-            <!-- ── Stat tiles ─────────────────────────────────────────────────── -->
-            <div class="row mb-4" style="gap: 0;">
-                <div class="col-4">
-                    <div class="stat-tile">
-                        <div class="stat-icon">🛡</div>
-                        <div class="stat-val" style="color: #56d364;">AKTIF</div>
-                        <div class="stat-lbl">ML Middleware</div>
-                    </div>
-                </div>
-                <div class="col-4 px-2">
-                    <div class="stat-tile">
-                        <div class="stat-icon">🔒</div>
-                        <div class="stat-val" style="color: #79c0ff;">Aman</div>
-                        <div class="stat-lbl">Query Method</div>
-                    </div>
-                </div>
-                <div class="col-4">
-                    <div class="stat-tile">
-                        <div class="stat-icon">🤖</div>
-                        <div class="stat-val" style="color: #d2a8ff;">NB</div>
-                        <div class="stat-lbl">Model Type</div>
-                    </div>
+        <a class="nav-card-link" href="{{ url_for('protected_login') }}">
+            <span class="nc-icon">🛡</span>
+            <div>
+                <div class="nc-title">Protected Login API</div>
+                <div class="nc-sub">
+                    Uji form login dengan ML middleware aktif, termasuk live prediksi payload.
                 </div>
             </div>
+        </a>
 
-            <!-- ── Navigasi cepat ─────────────────────────────────────────────── -->
-            <div class="card mb-4">
-                <div class="card-header hdr-blue">
-                    <strong>🔗 Navigasi Lab</strong>
-                </div>
-                <div class="card-body pt-3 pb-2">
-                    <a class="nav-card-link" href="{{ url_for('compare') }}">
-                        <span class="nc-icon">🔬</span>
-                        <div>
-                            <div class="nc-title">Halaman Komparasi</div>
-                            <div class="nc-sub">
-                                Bandingkan app rentan vs terlindungi secara berdampingan —
-                                True/False Positive, Negative, live prediksi.
-                            </div>
-                        </div>
-                    </a>
-
-                    <a class="nav-card-link" href="{{ url_for('protected_login') }}">
-                        <span class="nc-icon">🛡</span>
-                        <div>
-                            <div class="nc-title">Protected Login</div>
-                            <div class="nc-sub">
-                                Form login dengan ML guard aktif — live prediksi saat mengetik.
-                            </div>
-                        </div>
-                    </a>
-
-                    <a class="nav-card-link" href="http://localhost:5001" target="_blank" rel="noopener">
-                        <span class="nc-icon">⚠️</span>
-                        <div>
-                            <div class="nc-title">App Rentan (port 5001) ↗</div>
-                            <div class="nc-sub">
-                                Buka <code>main.py</code> di tab baru — tanpa proteksi,
-                                semua teknik SQLi bisa dicoba.
-                            </div>
-                        </div>
-                    </a>
+        <a class="nav-card-link" href="http://localhost:5001" target="_blank" rel="noopener">
+            <span class="nc-icon">⚠️</span>
+            <div>
+                <div class="nc-title" style="color: #ff7b72;">App Rentan (:5001) <small>↗</small></div>
+                <div class="nc-sub">
+                    Buka <code>main.py</code> (Unprotected App) di tab baru. Eksploitasi f-string SQL injection.
                 </div>
             </div>
+        </a>
+    </div>
+</div>
 
-            <!-- ── Session info ───────────────────────────────────────────────── -->
-            <div class="card mb-4">
-                <div class="card-header hdr-gray">
-                    <strong>🔐 Info Sesi</strong>
+<!-- ── Info Grid / Session Info ────────────────────────────────────── -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header hdr-gray">
+                <span class="mr-2">🔐</span> Info Sesi
+            </div>
+            <div class="card-body">
+                <div class="session-row">
+                    <span class="session-key">Otentikasi</span>
+                    <span class="session-val">Parameterized SQL</span>
                 </div>
-                <div class="card-body p-3">
-                    <div class="session-row">
-                        <span class="session-key">Logged in as</span>
-                        <span class="session-val">{{ username }}</span>
-                    </div>
-                    <div class="session-row">
-                        <span class="session-key">Auth method</span>
-                        <span class="session-val">Parameterized SQL (? placeholder)</span>
-                    </div>
-                    <div class="session-row">
-                        <span class="session-key">ML model</span>
-                        <span class="session-val">model_sqli_nb.pkl · Naive Bayes</span>
-                    </div>
-                    <div class="session-row">
-                        <span class="session-key">Middleware</span>
-                        <span class="session-val" style="color: #56d364;">✔ Aktif (before_request hook)</span>
-                    </div>
-                    <div class="session-row">
-                        <span class="session-key">Port</span>
-                        <span class="session-val">5002</span>
-                    </div>
+                <div class="session-row">
+                    <span class="session-key">Model Deteksi</span>
+                    <span class="session-val">model_sqli_nb.pkl</span>
+                </div>
+                <div class="session-row">
+                    <span class="session-key">Interceptor</span>
+                    <span class="session-val" style="color: #56d364;">hook: before_request</span>
+                </div>
+                <div class="session-row">
+                    <span class="session-key">Port Network</span>
+                    <span class="session-val">5002</span>
                 </div>
             </div>
-
-            <!-- ── Perbedaan keamanan ──────────────────────────────────────────── -->
-            <div class="card mb-4">
-                <div class="card-header hdr-purple">
-                    <strong>📋 Mengapa Login Ini Aman?</strong>
-                </div>
-                <div class="card-body p-3" style="font-size: 0.85rem; color: #8b949e; line-height: 1.7;">
-                    <ol class="pl-3 mb-0">
-                        <li>
-                            <strong style="color: #c9d1d9;">ML Middleware (before_request)</strong> —
-                            setiap field form diperiksa oleh model Naive Bayes
-                            <em>sebelum</em> handler dipanggil.
-                            Payload SQLi diblokir di layer ini.
-                        </li>
-                        <li>
-                            <strong style="color: #c9d1d9;">Parameterized Query</strong> —
-                            autentikasi menggunakan
-                            <code>WHERE username = ? AND password = ?</code>
-                            sehingga input tidak pernah diinterpolasi langsung ke SQL.
-                        </li>
-                        <li>
-                            <strong style="color: #c9d1d9;">Tidak Ada Error Exposure</strong> —
-                            pesan error database tidak bocor ke response pengguna.
-                        </li>
-                        <li>
-                            <strong style="color: #c9d1d9;">Defense-in-depth</strong> —
-                            dua lapisan perlindungan: ML detection + query parameterization.
-                            Bahkan jika ML miss (false negative), query tetap aman.
-                        </li>
-                    </ol>
-                </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header hdr-purple">
+                <span class="mr-2">📋</span> Keamanan Berlapis
             </div>
-
-            <!-- ── Logout ─────────────────────────────────────────────────────── -->
-            <hr class="my-4" />
-            <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap: 10px;">
-                <span style="font-size: 0.82rem; color: #484f58;">
-                    Sesi aktif sebagai <strong style="color: #8b949e;">{{ username }}</strong>
-                    pada app terlindungi (port 5002).
-                </span>
-                <form method="POST" action="{{ url_for('logout') }}" style="margin: 0;">
-                    <button type="submit" class="btn-logout">⏏ Logout</button>
-                </form>
+            <div class="card-body" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7;">
+                <ol class="pl-3 mb-0">
+                    <li class="mb-2">
+                        <strong style="color: var(--text-primary);">Pre-Validation (ML Middleware)</strong> —
+                        Payload input diperiksa model <em>Naive Bayes</em> sebelum controller dipanggil.
+                    </li>
+                    <li class="mb-2">
+                        <strong style="color: var(--text-primary);">Data Plane (Parameterized)</strong> —
+                        Eksekusi autentikasi dipisahkan dari interpolasi string. Relasional DB kebal manipulasi.
+                    </li>
+                    <li>
+                        <strong style="color: var(--text-primary);">Zero Error Dump</strong> —
+                        Stack traces & SQLite errors tidak diekspos ke klien.
+                    </li>
+                </ol>
             </div>
+        </div>
+    </div>
+</div>
 
-        </div><!-- /container -->
+<!-- ── Logout ─────────────────────────────────────────────────────── -->
+<hr class="mt-2 mb-4" />
+<div class="d-flex align-items-center justify-content-between flex-wrap" style="gap: 16px; margin-bottom: 24px;">
+    <div style="font-size: 0.85rem; color: var(--text-muted);">
+        Akses sebagai <strong style="color: var(--text-primary);">{{ username }}</strong>, 
+        terkoneksi pada node aman.
+    </div>
+    <form method="POST" action="{{ url_for('logout') }}" style="margin: 0;">
+        <button type="submit" class="btn-logout">⏏ Akhiri Sesi</button>
+    </form>
+</div>
 
-        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    </body>
-</html>
+{% endblock %}
