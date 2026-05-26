@@ -1,22 +1,53 @@
 # Vulnerable Flask App
 
-Project ini adalah lab edukasi untuk mempelajari SQL injection di Flask. Repo sekarang berisi dua aplikasi yang saling membandingkan: versi rentan yang sengaja tidak aman, dan versi terlindungi yang memakai middleware deteksi SQLi berbasis Naive Bayes.
+Project ini adalah lab edukasi untuk mempelajari SQL Injection (SQLi) pada aplikasi Flask. Repository ini menyediakan dua versi aplikasi yang bisa dibandingkan langsung:
 
-## Gambaran Umum
+- Versi rentan (sengaja tidak aman) untuk simulasi serangan SQLi.
+- Versi terlindungi dengan validasi input dan middleware deteksi SQLi berbasis machine learning.
 
-- `main.py` menjalankan aplikasi rentan di port `5001`.
-- `app_protected.py` menjalankan aplikasi terlindungi di port `5002`.
-- `create_db.py` membuat dan mengisi database SQLite `users.db`.
-- `middleware.py` memuat model `model_sqli_nb.pkl` dan dipakai untuk memblokir request yang terdeteksi SQLi.
-- `templates/` berisi tampilan untuk login, dashboard, blokir, dan halaman komparasi.
+## Daftar Isi
 
-## Fitur
+- [Tujuan Project](#tujuan-project)
+- [Fitur Utama](#fitur-utama)
+- [Spesifikasi](#spesifikasi)
+- [Struktur Project](#struktur-project)
+- [Cara Menjalankan](#cara-menjalankan)
+- [Akun Demo](#akun-demo)
+- [Daftar Endpoint](#daftar-endpoint)
+- [Troubleshooting](#troubleshooting)
+- [Catatan Keamanan](#catatan-keamanan)
 
-- Login rentan yang membangun query SQL dengan string interpolation.
-- Login aman di aplikasi terlindungi menggunakan parameterized query.
-- Middleware ML untuk mendeteksi input SQL injection sebelum request diproses.
-- Halaman komparasi untuk membandingkan perilaku aplikasi rentan vs terlindungi.
-- Endpoint prediksi JSON untuk demo deteksi real-time.
+## Tujuan Project
+
+- Menunjukkan perbedaan perilaku login rentan vs login aman.
+- Memahami dampak query SQL yang dibangun dengan string interpolation.
+- Mendemonstrasikan mitigasi SQLi menggunakan parameterized query dan deteksi input mencurigakan.
+
+## Fitur Utama
+
+- Login rentan pada aplikasi utama.
+- Login aman pada aplikasi protected.
+- Middleware deteksi SQLi berbasis model Naive Bayes.
+- Halaman perbandingan hasil antara mode rentan dan protected.
+- Endpoint API untuk prediksi input SQLi.
+
+## Spesifikasi
+
+### Kebutuhan Sistem
+
+- OS: Windows, Linux, atau macOS
+- Python: disarankan versi 3.9 atau lebih baru
+- Package manager: pip
+
+### Dependensi Python
+
+Mengacu pada file `requirements.txt`:
+
+- Flask==2.0.1
+- Werkzeug==2.0.3
+- scikit-learn>=1.6.1
+- joblib>=1.3.0
+- numpy>=1.24.0
 
 ## Struktur Project
 
@@ -29,7 +60,11 @@ middleware.py
 model_sqli_nb.pkl
 output_file.sql
 requirements.txt
+static/
+  css/
+    style.css
 templates/
+  base.html
   blocked.html
   compare.html
   home.html
@@ -37,78 +72,129 @@ templates/
   protected_login.html
 ```
 
-## Persiapan
+## Cara Menjalankan
 
-1. Buat virtual environment dan aktifkan.
-2. Install dependensi.
+### 1. Clone dan masuk ke direktori project
+
+```bash
+git clone <url-repository>
+cd Vulnerable-Flask-App
+```
+
+Jika repository sudah ada di lokal, cukup masuk ke folder project.
+
+### 2. Buat virtual environment
+
+```bash
+python -m venv .venv
+```
+
+### 3. Aktifkan virtual environment
+
+Windows (PowerShell):
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Windows (CMD):
+
+```bat
+.venv\Scripts\activate.bat
+```
+
+Linux/macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+### 4. Install dependensi
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Buat ulang database SQLite jika diperlukan.
+### 5. Inisialisasi database SQLite
 
 ```bash
 python create_db.py
 ```
 
-## Menjalankan Aplikasi
+Perintah ini akan membuat atau memperbarui file `users.db` beserta data awal.
 
-### Aplikasi Rentan
+### 6. Jalankan aplikasi rentan
 
 ```bash
 python main.py
 ```
 
-Lalu buka:
+Buka di browser:
 
 ```text
 http://127.0.0.1:5001
 ```
 
-### Aplikasi Terlindungi
+### 7. Jalankan aplikasi protected
+
+Di terminal lain (dengan environment aktif):
 
 ```bash
 python app_protected.py
 ```
 
-Lalu buka:
+Buka di browser:
 
 ```text
 http://127.0.0.1:5002
 ```
 
-## Route Utama
+## Akun Demo
 
-### `main.py`
+Data akun demo dibuat oleh script `create_db.py`. Contoh yang umum dipakai:
 
-- `GET /` dan `POST /` untuk login rentan.
-- `GET /home` untuk dashboard setelah login.
+- Username: admin, Password: admin123
+- Username: alice, Password: alice123
 
-### `app_protected.py`
-
-- `GET /` mengarahkan ke `/protected-login`.
-- `GET /protected-login` dan `POST /protected-login` untuk login terlindungi.
-- `GET /blocked` menampilkan request yang diblokir.
-- `GET /home` menampilkan dashboard terlindungi.
-- `GET /compare` dan `POST /compare` untuk komparasi dua alur.
-- `POST /api/predict` untuk prediksi JSON.
-- `POST /logout` untuk keluar sesi.
-
-## Database dan Data
-
-Database yang dipakai adalah SQLite `users.db` dengan tabel `users`. Script `create_db.py` menambahkan akun contoh seperti `admin/admin123`, `alice/alice123`, dan beberapa user dummy lain untuk keperluan demo.
-
-## Model ML
-
-File `model_sqli_nb.pkl` adalah model deteksi SQLi yang dimuat oleh `middleware.py`. Jika ingin memeriksa format model, jalankan:
+Jika login gagal, jalankan ulang:
 
 ```bash
-python inspect_model.py
+python create_db.py
 ```
 
-## Catatan
+## Daftar Endpoint
 
-- Project ini dibuat untuk edukasi dan demonstrasi, bukan untuk production.
-- Aplikasi rentan memang sengaja tidak aman agar contoh SQL injection mudah dipelajari.
-- Jika model atau database hilang, jalankan ulang `create_db.py` dan pastikan `model_sqli_nb.pkl` tetap ada di root project.
+### Aplikasi Rentan (`main.py`)
+
+- GET `/` - menampilkan form login rentan
+- POST `/` - proses login rentan
+- GET `/home` - halaman dashboard setelah login
+
+### Aplikasi Protected (`app_protected.py`)
+
+- GET `/` - redirect ke `/protected-login`
+- GET `/protected-login` - menampilkan form login aman
+- POST `/protected-login` - proses login aman
+- GET `/blocked` - halaman saat request diblokir middleware
+- GET `/home` - dashboard protected
+- GET `/compare` - halaman komparasi
+- POST `/compare` - proses komparasi input
+- POST `/api/predict` - prediksi input SQLi (JSON)
+- POST `/logout` - keluar sesi
+
+## Troubleshooting
+
+- Error aktivasi PowerShell: jalankan `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` lalu aktifkan ulang venv.
+- Port sudah dipakai: ganti port pada `main.py` atau `app_protected.py`, lalu restart aplikasi.
+- `model_sqli_nb.pkl` tidak ditemukan: pastikan file ada di root project.
+- Database kosong/rusak: jalankan ulang `python create_db.py`.
+
+## Catatan Keamanan
+
+- Project ini dibuat untuk edukasi, training, dan demonstrasi.
+- Jangan deploy versi rentan ke lingkungan production.
+- Uji coba SQLi hanya boleh dilakukan di lingkungan lab yang Anda kendalikan.
+
+## Lisensi
+
+Belum ditentukan. Tambahkan file lisensi jika project akan dipublikasikan secara resmi.
