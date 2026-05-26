@@ -1,5 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import sqlite3
+import subprocess
+import sys
+import os
 
 app = Flask(__name__)
 app.secret_key = 'this is your key'
@@ -184,5 +187,18 @@ def login():
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    # debug=True → full Flask tracebacks in browser (extra info leakage)
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    # ── Auto-launch app_protected.py di background (port 5002) ──────────────
+    protected_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app_protected.py')
+    protected_proc = subprocess.Popen(
+        [sys.executable, protected_script],
+        # stdout/stderr = None → output langsung muncul di terminal ini
+    )
+    print(f"[INFO] app_protected.py berjalan (PID {protected_proc.pid}) → http://localhost:5002")
+
+    try:
+        # debug=True → full Flask tracebacks in browser (extra info leakage)
+        app.run(debug=True, host='0.0.0.0', port=5001, use_reloader=False)
+    finally:
+        # Pastikan subprocess ikut mati saat main.py dihentikan
+        protected_proc.terminate()
+        print("[INFO] app_protected.py dihentikan.")

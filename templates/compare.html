@@ -16,6 +16,19 @@
     .title-vuln { color: #ff7b72; }
     .title-protect { color: #56d364; }
 
+    .verdict-label { font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+    .verdict-label-success { color: #56d364; }
+    .verdict-label-warning { color: #e3b341; }
+    .verdict-label-danger { color: #ff7b72; }
+
+    .probability-label { font-weight: 600; }
+    .prob-label-danger { color: #ff7b72; }
+    .prob-label-success { color: #56d364; }
+
+    .telemetry-status { font-weight: 800; font-size: 1.2rem; }
+    .telemetry-status-danger { color: #ff7b72; }
+    .telemetry-status-success { color: #56d364; }
+
     /* ── Component: Status banners ────────────────────────────────────────── */
     .status-panel { border-radius: 12px; padding: 16px 20px; transition: transform var(--transition-fast); backdrop-filter: var(--blur-xl); }
     
@@ -135,11 +148,12 @@
 
 <!-- ── Verdict banner ───────────────────────────────────────────────────── -->
 {% set v = result.verdict %}
-<div class="status-panel verdict-{{ v.type[:2] if v.type != 'false_negative' else 'fn' }} mb-4 d-flex align-items-center">
+{% set verdict_key = 'tp' if v.type == 'true_positive' else 'tn' if v.type == 'true_negative' else 'fp' if v.type == 'false_positive' else 'fn' %}
+{% set verdict_tone = 'success' if v.type in ('true_positive', 'true_negative') else 'warning' if v.type == 'false_positive' else 'danger' %}
+<div class="status-panel verdict-{{ verdict_key }} mb-4 d-flex align-items-center">
     <span style="font-size: 2rem; margin-right: 16px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">{{ v.icon }}</span>
     <div>
-        <div style="font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;
-            color: {{ '#56d364' if v.type in ('true_positive','true_negative') else '#e3b341' if v.type == 'false_positive' else '#ff7b72' }};">
+        <div class="verdict-label verdict-label-{{ verdict_tone }}">
             {{ v.label }}
             <span class="badge-tech" style="font-weight:600; letter-spacing:0.05em; background:rgba(0,0,0,0.2); border:none;">Model Decision</span>
         </div>
@@ -234,7 +248,7 @@
             </div>
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span style="font-weight:800; font-size:1.2rem; color: {{ '#ff7b72' if result.ml_blocked else '#56d364' }};">
+                    <span class="telemetry-status {{ 'telemetry-status-danger' if result.ml_blocked else 'telemetry-status-success' }}">
                         {{ '🔴 SQL INJECTION' if result.ml_blocked else '🟢 LEGITIMATE' }}
                     </span>
                     <div class="text-right">
@@ -245,20 +259,20 @@
                     </div>
                 </div>
 
-                <div class="conf-bar-wrap mb-4">
-                    <div class="conf-bar-fill" style="width: {{ (result.ml_confidence * 100)|int }}%; background: {{ 'linear-gradient(90deg, var(--brand-danger), #ff7b72)' if result.ml_blocked else 'linear-gradient(90deg, var(--brand-success), #56d364)' }};"></div>
+                <div class="conf-bar-wrap mb-4 js-ml-confidence-bar" data-confidence="{{ result.ml_confidence }}" data-blocked="{{ 1 if result.ml_blocked else 0 }}">
+                    <div class="conf-bar-fill js-ml-confidence-fill"></div>
                 </div>
 
                 <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; margin-bottom:8px;">Sebaran Matrix Probabilitas</div>
                 {% for cls, prob in result.ml_proba_map.items() %}
-                <div class="d-flex justify-content-between align-items-center mb-2" style="font-size:0.8rem;">
-                    {% set is_sqli_class = cls in ('1','1.0') or cls|lower in ('sqli','malicious') %}
-                    <span style="color:{{ '#ff7b72' if is_sqli_class else '#56d364' }}; font-weight:600;">
+                {% set is_sqli_class = cls in ('1','1.0') or cls|lower in ('sqli','malicious') %}
+                <div class="d-flex justify-content-between align-items-center mb-2 js-probability-row" style="font-size:0.8rem;" data-prob="{{ prob }}" data-sqli-class="{{ 1 if is_sqli_class else 0 }}">
+                    <span class="probability-label {{ 'prob-label-danger' if is_sqli_class else 'prob-label-success' }}">
                         {{ 'MALICIOUS' if is_sqli_class else 'LEGITIMATE' }}
                     </span>
                     <div class="d-flex align-items-center" style="gap:12px; flex:1; padding-left:16px;">
-                        <div class="conf-bar-wrap my-0" style="flex:1; height:6px;">
-                            <div class="conf-bar-fill" style="width:{{ (prob*100)|int }}%; background: {{ '#ff7b72' if is_sqli_class else '#56d364' }};"></div>
+                        <div class="conf-bar-wrap my-0 js-probability-bar" style="flex:1; height:6px;">
+                            <div class="conf-bar-fill js-probability-fill"></div>
                         </div>
                         <span style="font-family:monospace; width:48px; text-align:right;">{{ (prob*100)|round(1) }}%</span>
                     </div>
@@ -334,15 +348,28 @@
     <div class="card-body p-4">
         <div class="row">
             <div class="col-md-6 pr-md-4" style="border-right: 1px dashed rgba(255,255,255,0.1);">
-                <div class="font-weight-bold text-uppercase mb-3" style="color:var(--brand-danger); font-size:0.8rem; letter-spacing:0.05em;">Mutasi Berbahaya</div>
-                {% for name, pl in [("Tautology Login", "' OR '1'='1' --"), ("Admin Blind", "admin' --"), ("Schema Scan", "' UNION SELECT name,sql FROM sqlite_master --"), ("Destructive DDL", "'; DROP TABLE users --")] %}
-                <button type="button" class="payload-btn" onclick="document.getElementById('usernameInput').value = this.innerText;" title="{{name}}">{{pl}}</button>
+                <div class="font-weight-bold text-uppercase mb-3" style="color:var(--brand-danger); font-size:0.8rem; letter-spacing:0.05em;">Mutasi Berbahaya ⚠️</div>
+                {# Semua payload valid SQLite — cursor.execute() single-statement #}
+                {% for name, pl in [
+                    ("Classic Auth Bypass",       "' OR '1'='1' --"),
+                    ("Admin Comment Bypass",       "admin' --"),
+                    ("UNION Dump All Users",       "' UNION SELECT id, username, password FROM users --"),
+                    ("UNION Schema Enum",          "' UNION SELECT 1, name, sql FROM sqlite_master WHERE type='table' --"),
+                    ("Boolean Blind (char test)",  "' AND (SELECT SUBSTR(password,1,1) FROM users WHERE username='admin')='a' --"),
+                    ("SQLite Version Fingerprint", "' UNION SELECT 1, sqlite_version(), 3 --"),
+                    ("Error-Based Type Mismatch",  "' AND 1=(SELECT CASE WHEN (SELECT COUNT(*) FROM users)>0 THEN 1 ELSE 'boom' END) --"),
+                    ("Time-Based Blind",           "' AND 1=(SELECT CASE WHEN (SELECT COUNT(*) FROM users WHERE username='admin')>0 THEN (SELECT COUNT(*) FROM sqlite_master m1, sqlite_master m2) ELSE 0 END) --")
+                ] %}
+                <button type="button" class="payload-btn js-payload-btn"
+                    data-value="{{ pl | e }}"
+                    title="{{ name }}"
+                ><span style="color:var(--text-muted);font-size:0.7rem;margin-right:6px;">{{ name }}</span>{{ pl }}</button>
                 {% endfor %}
             </div>
             <div class="col-md-6 pl-md-4 mt-4 mt-md-0">
-                <div class="font-weight-bold text-uppercase mb-3" style="color:var(--brand-success); font-size:0.8rem; letter-spacing:0.05em;">Akses Sah (Normal)</div>
+                <div class="font-weight-bold text-uppercase mb-3" style="color:var(--brand-success); font-size:0.8rem; letter-spacing:0.05em;">Akses Sah (Normal) ✅</div>
                 {% for name, pl in [("Default Admin", "admin"), ("User Format", "jane.doe@example.com"), ("Numeric ID", "901284"), ("Empty String", "")] %}
-                <button type="button" class="payload-btn" onclick="document.getElementById('usernameInput').value = this.innerText === '(kosong)' ? '' : this.innerText;" title="{{name}}">{{ pl if pl else '(kosong)' }}</button>
+                <button type="button" class="payload-btn js-payload-btn" data-value="{{ pl | e }}" title="{{ name }}">{{ pl if pl else '(kosong)' }}</button>
                 {% endfor %}
             </div>
         </div>
@@ -359,6 +386,50 @@
     const liveFill = document.getElementById("live-conf-fill");
     const indicatorWrap = document.getElementById("live-indicator-container");
     const userInput = document.getElementById("usernameInput");
+
+    function clampPercent(value) {
+        return Math.max(0, Math.min(100, Math.round(value * 100)));
+    }
+
+    function initializeConfidenceBars() {
+        document.querySelectorAll('.js-ml-confidence-bar').forEach((bar) => {
+            const fill = bar.querySelector('.js-ml-confidence-fill');
+            if (!fill) {
+                return;
+            }
+
+            const confidence = Number(bar.dataset.confidence || 0);
+            const blocked = bar.dataset.blocked === '1';
+
+            fill.style.width = `${clampPercent(confidence)}%`;
+            fill.style.background = blocked
+                ? 'linear-gradient(90deg, var(--brand-danger), #ff7b72)'
+                : 'linear-gradient(90deg, var(--brand-success), #56d364)';
+        });
+
+        document.querySelectorAll('.js-probability-row').forEach((row) => {
+            const fill = row.querySelector('.js-probability-fill');
+            if (!fill) {
+                return;
+            }
+
+            const probability = Number(row.dataset.prob || 0);
+            const isSqli = row.dataset.sqliClass === '1';
+
+            fill.style.width = `${clampPercent(probability)}%`;
+            fill.style.background = isSqli ? '#ff7b72' : '#56d364';
+        });
+    }
+
+    function initializePresetButtons() {
+        document.querySelectorAll('.js-payload-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                userInput.value = button.dataset.value || '';
+                userInput.dispatchEvent(new Event('input', { bubbles: true }));
+                userInput.focus();
+            });
+        });
+    }
 
     function updateBadge(state, text, conf) {
         let badgeHtml = '';
@@ -407,6 +478,9 @@
             });
         }, 300);
     });
+
+    initializeConfidenceBars();
+    initializePresetButtons();
 })();
 </script>
 {% endblock %}

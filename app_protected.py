@@ -362,8 +362,8 @@ def compare():
     result = None
 
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
 
         # ── Prediksi ML ──────────────────────────────────────────────────────
         try:
@@ -421,7 +421,7 @@ def api_predict():
       }
     """
     data = request.get_json(silent=True) or {}
-    text = data.get("text", "").strip()
+    text = data.get("text", "")
 
     if not text:
         return jsonify({"error": "Field 'text' wajib diisi."}), 400
