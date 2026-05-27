@@ -100,7 +100,11 @@
 
 <!-- Hero banner -->
 <div class="blocked-hero mt-2">
-    <span class="shield-icon">🛡️</span>
+    <span class="shield-icon inline-svg-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+    </span>
     <div class="blocked-title">Koneksi Ditolak</div>
     <div class="blocked-sub">
         Pola serangan injeksi SQL terdeteksi oleh mesin pintar. <br/>Permintaan data menuju server basis data berhasil dimitigasi.
@@ -170,18 +174,28 @@
             {% set pct_bar = (prob * 100) | round(2) %}
 
             {% if cls_lower in ('1', '1.0', 'sqli', 'sql injection', 'malicious', 'attack') %}
-                {% set cls_display = '⚠️ MALICIOUS' %}
+                {% set cls_display = 'MALICIOUS' %}
                 {% set bar_cls = 'proba-sqli' %}
+                {% set cls_icon = 'warning' %}
             {% elif cls_lower in ('0', '0.0', 'legitimate', 'normal', 'safe') %}
-                {% set cls_display = '✅ LEGITIMATE' %}
+                {% set cls_display = 'LEGITIMATE' %}
                 {% set bar_cls = 'proba-legit' %}
+                {% set cls_icon = 'check' %}
             {% else %}
                 {% set cls_display = cls %}
                 {% set bar_cls = 'proba-other' %}
+                {% set cls_icon = 'other' %}
             {% endif %}
 
             <div class="proba-row">
-                <span class="proba-label">{{ cls_display }}</span>
+                <span class="proba-label d-inline-flex align-items-center" style="gap: 6px;">
+                    {% if cls_icon == 'warning' %}
+                        <span class="inline-svg-icon" style="color: var(--brand-danger); font-size: 0.9rem;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
+                    {% elif cls_icon == 'check' %}
+                        <span class="inline-svg-icon" style="color: var(--brand-success); font-size: 0.9rem;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+                    {% endif %}
+                    {{ cls_display }}
+                </span>
                 <div class="proba-bar-wrap">
                     <div class="proba-bar-fill {{ bar_cls }}" style="width:{{ pct_bar }}%"></div>
                 </div>

@@ -626,3 +626,19 @@ code {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
 }
+
+/* Inline SVG Icon Alignment Helpers */
+.inline-svg-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: -0.125em;
+    flex-shrink: 0;
+}
+
+.inline-svg-icon svg {
+    width: 1em;
+    height: 1em;
+    stroke: currentColor;
+    fill: none;
+}

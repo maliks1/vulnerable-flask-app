@@ -1,0 +1,341 @@
+﻿{% extends "base.html" %}
+
+{% block title %}403 Forbidden - SQLi Guard{% endblock %}
+
+{% block container_style %}max-width: 680px;{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* --------------------------------------------------------------------------
+       FORBIDDEN CONTAINER & HERO STYLES
+       -------------------------------------------------------------------------- */
+    .forbidden-hero {
+        text-align: center;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 48px 32px 40px 32px;
+        box-shadow: var(--shadow-lg);
+        margin-top: 1.5rem;
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--transition-smooth);
+    }
+
+    /* Decorative Top Accent Line */
+    .forbidden-hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--brand-danger), var(--brand-warning));
+    }
+
+    /* Shield & Lock Animated Graphic */
+    .forbidden-icon-container {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 28px;
+    }
+
+    .forbidden-icon-bg {
+        position: absolute;
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background: var(--bg-danger-subtle);
+        border: 1px dashed var(--brand-danger-glow);
+        z-index: 1;
+        animation: rotate-dashed 20s linear infinite;
+    }
+
+    .forbidden-icon {
+        width: 80px;
+        height: 80px;
+        color: var(--brand-danger);
+        z-index: 2;
+        filter: drop-shadow(0 4px 12px var(--brand-danger-glow));
+        animation: pulse-shield 2.5s infinite ease-in-out;
+        transition: color var(--transition-smooth);
+    }
+
+    .forbidden-badge {
+        position: absolute;
+        bottom: -4px;
+        right: -8px;
+        background: var(--brand-danger);
+        color: #ffffff;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 20px;
+        box-shadow: var(--shadow-md);
+        border: 2px solid var(--bg-card);
+        z-index: 3;
+        letter-spacing: 0.05em;
+    }
+
+    .forbidden-title {
+        font-size: 1.85rem;
+        font-weight: 800;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+        margin-bottom: 12px;
+        font-family: var(--font-sans);
+    }
+
+    .forbidden-subtitle {
+        font-size: 0.96rem;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        max-width: 520px;
+        margin: 0 auto 32px auto;
+    }
+
+    /* --------------------------------------------------------------------------
+       DIAGNOSTICS & SYSTEM REPORT STYLES
+       -------------------------------------------------------------------------- */
+    .report-card {
+        background: var(--bg-app);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 32px;
+        overflow: hidden;
+        transition: all var(--transition-smooth);
+    }
+
+    .report-header {
+        background: var(--bg-gray-subtle);
+        border-bottom: 1px solid var(--border-color);
+        padding: 12px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .report-header-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .report-badge {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--brand-danger);
+        background: var(--bg-danger-subtle);
+        border: 1px solid var(--brand-danger-glow);
+        padding: 2px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+
+    .report-body {
+        padding: 16px 20px;
+    }
+
+    .report-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.85rem;
+    }
+
+    .report-row:last-child {
+        border-bottom: none;
+    }
+
+    .report-key {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    .report-val {
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-weight: 600;
+    }
+
+    /* --------------------------------------------------------------------------
+       KEY ANIMATIONS
+       -------------------------------------------------------------------------- */
+    @keyframes pulse-shield {
+        0%, 100% {
+            transform: scale(1);
+            filter: drop-shadow(0 4px 6px var(--brand-danger-glow));
+        }
+        50% {
+            transform: scale(1.04);
+            filter: drop-shadow(0 8px 16px rgba(239, 68, 68, 0.35));
+        }
+    }
+
+    @keyframes rotate-dashed {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* --------------------------------------------------------------------------
+       NAVIGATION ACTIONS
+       -------------------------------------------------------------------------- */
+    .action-row {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .btn-custom {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        padding: 10px 24px;
+        border-radius: 6px;
+        transition: all var(--transition-smooth);
+        text-decoration: none;
+    }
+
+    .btn-custom-secondary {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+    }
+
+    .btn-custom-secondary:hover {
+        background: var(--bg-gray-subtle);
+        border-color: var(--text-secondary);
+        color: var(--text-primary);
+        transform: translateY(-1px);
+    }
+
+    .btn-custom-primary {
+        background: var(--brand-primary);
+        border: 1px solid var(--brand-primary);
+        color: #ffffff;
+    }
+
+    .btn-custom-primary:hover {
+        background: var(--brand-primary);
+        opacity: 0.95;
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px var(--brand-primary-glow);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="forbidden-hero">
+    <!-- Icon Graphic -->
+    <div class="forbidden-icon-container">
+        <div class="forbidden-icon-bg"></div>
+        <!-- Premium Shield SVG Lock Icon -->
+        <svg class="forbidden-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <rect x="9" y="11" width="6" height="5" rx="1" fill="currentColor" fill-opacity="0.1"/>
+            <path d="M10 11V9a2 2 0 1 1 4 0v2"/>
+        </svg>
+        <span class="forbidden-badge">SECURED</span>
+    </div>
+
+    <!-- Headers -->
+    <h2 class="forbidden-title">Akses Ditolak / 403 Forbidden</h2>
+    
+    <p class="forbidden-subtitle">
+        Koneksi Anda ke endpoint ini ditolak karena permintaan melanggar aturan keamanan aplikasi. Sistem mendeteksi parameter yang tidak aman atau Anda tidak memiliki otorisasi yang sesuai.
+    </p>
+
+    <!-- System Diagnostic Report -->
+    <div class="report-card">
+        <div class="report-header">
+            <span class="report-header-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                Laporan Diagnostik Sistem
+            </span>
+            <span class="report-badge">Intrusion Prevention</span>
+        </div>
+        
+        <div class="report-body">
+            <div class="report-row">
+                <span class="report-key">Kode Masalah</span>
+                <span class="report-val" style="color: var(--brand-danger);">HTTP 403 (FORBIDDEN)</span>
+            </div>
+            <div class="report-row">
+                <span class="report-key">Alamat IP Klien</span>
+                <span class="report-val">{{ request.headers.get('X-Forwarded-For', request.remote_addr) }}</span>
+            </div>
+            <div class="report-row">
+                <span class="report-key">Metode Permintaan</span>
+                <span class="report-val">{{ request.method }}</span>
+            </div>
+            <div class="report-row">
+                <span class="report-key">Endpoint Target</span>
+                <span class="report-val">{{ request.path }}</span>
+            </div>
+            <div class="report-row">
+                <span class="report-key">Waktu Server (UTC)</span>
+                <span class="report-val" id="timestamp-val">-</span>
+            </div>
+            <div class="report-row">
+                <span class="report-key">Status Proteksi</span>
+                <span class="report-val" style="color: var(--brand-success);">SQLi ML Guard Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Navigation Buttons -->
+    <div class="action-row">
+        <a href="{{ url_for('protected_login') }}" class="btn-custom btn-custom-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Kembali ke Login
+        </a>
+        <a href="{{ url_for('compare') }}" class="btn-custom btn-custom-primary">
+            Visual Compare Lab
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Generate current timestamp in human readable format
+        const now = new Date();
+        const formattedDate = now.getUTCFullYear() + '-' + 
+            String(now.getUTCMonth() + 1).padStart(2, '0') + '-' + 
+            String(now.getUTCDate()).padStart(2, '0') + ' ' + 
+            String(now.getUTCHours()).padStart(2, '0') + ':' + 
+            String(now.getUTCMinutes()).padStart(2, '0') + ':' + 
+            String(now.getUTCSeconds()).padStart(2, '0') + ' UTC';
+        
+        document.getElementById("timestamp-val").textContent = formattedDate;
+    });
+</script>
+{% endblock %}

@@ -181,7 +181,7 @@ def classify_verdict(
     if ml_blocked and any_attack:
         return {
             "type": "true_positive",
-            "icon": "✅",
+            "icon": "check-circle",
             "label": "True Positive",
             "msg": "Model benar — serangan SQLi terdeteksi dan diblokir.",
             "color": "hdr-green",
@@ -189,7 +189,7 @@ def classify_verdict(
     if ml_blocked and not any_attack:
         return {
             "type": "false_positive",
-            "icon": "⚠️",
+            "icon": "alert-triangle",
             "label": "False Positive",
             "msg": "Model salah — input sah diblokir (false alarm).",
             "color": "hdr-yellow",
@@ -197,7 +197,7 @@ def classify_verdict(
     if not ml_blocked and any_attack:
         return {
             "type": "false_negative",
-            "icon": "❌",
+            "icon": "x-circle",
             "label": "False Negative",
             "msg": "Model GAGAL — serangan lolos dari deteksi ML!",
             "color": "hdr-red",
@@ -205,7 +205,7 @@ def classify_verdict(
     # not blocked, no attack
     return {
         "type": "true_negative",
-        "icon": "✅",
+        "icon": "check-circle",
         "label": "True Negative",
         "msg": "Model benar — input sah diloloskan.",
         "color": "hdr-green",
@@ -466,5 +466,12 @@ def logout():
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+# Custom 403 Forbidden Error Handler
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Custom error handler for HTTP 403 Forbidden."""
+    return render_template('403.html'), 403
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5002)

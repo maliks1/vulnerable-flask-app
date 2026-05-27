@@ -70,7 +70,19 @@
 <!-- Page heading -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div class="d-flex align-items-center">
-        <span class="page-title-icon">🔬</span>
+        <span class="page-title-icon inline-svg-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 18h8" />
+            <path d="M3 22h18" />
+            <path d="M14 22a7 7 0 1 0-14 0" />
+            <path d="M9 14h2" />
+            <path d="M9 12a3 3 0 1 0-6 0" />
+            <path d="M12 6l3.5 3.5" />
+            <path d="M9 3l6 6" />
+            <path d="M14 2a2 2 0 0 1 2 2v6" />
+            <path d="M18 10a2 2 0 0 1-2 2h-4" />
+        </svg>
+    </span>
         <div>
             <h2 class="mb-0 font-weight-bold" style="color: var(--brand-primary);">Komparasi Simulasi</h2>
             <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 2px;">
@@ -151,11 +163,15 @@
 {% set verdict_key = 'tp' if v.type == 'true_positive' else 'tn' if v.type == 'true_negative' else 'fp' if v.type == 'false_positive' else 'fn' %}
 {% set verdict_tone = 'success' if v.type in ('true_positive', 'true_negative') else 'warning' if v.type == 'false_positive' else 'danger' %}
 <div class="status-panel verdict-{{ verdict_key }} mb-4 d-flex align-items-center" style="gap: 16px;">
-    <span style="font-size: 2.2rem; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));">
-        {% if v.type == 'true_positive' %}🎯
-        {% elif v.type == 'true_negative' %}✅
-        {% elif v.type == 'false_positive' %}⚠️
-        {% else %}❌
+    <span class="inline-svg-icon" style="font-size: 2.2rem; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));">
+        {% if v.type == 'true_positive' %}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand-success);"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+        {% elif v.type == 'true_negative' %}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand-success);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        {% elif v.type == 'false_positive' %}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand-warning);"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        {% else %}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand-danger);"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
         {% endif %}
     </span>
     <div>
@@ -172,8 +188,9 @@
 
     <!-- LIMITASI KIRI / VULNERABLE -->
     <div class="col-md-6 col-vulnerable px-0 pr-md-4">
-        <div class="col-title title-vuln">
-            ⚠️ Node Vulnerable (Port 5001)
+        <div class="col-title title-vuln d-flex align-items-center" style="gap: 8px;">
+            <span class="inline-svg-icon" style="font-size: 1.1rem; color: var(--brand-danger);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
+            Node Vulnerable (Port 5001)
         </div>
 
         <div class="card mb-4" style="background: var(--bg-danger-subtle); border-color: var(--brand-danger-glow);">
@@ -244,8 +261,9 @@
 
     <!-- LIMITASI KANAN / PROTECTED -->
     <div class="col-md-6 px-0 pl-md-4">
-        <div class="col-title title-protect">
-            🛡️ Node Protected (Port 5002)
+        <div class="col-title title-protect d-flex align-items-center" style="gap: 8px;">
+            <span class="inline-svg-icon" style="font-size: 1.1rem; color: var(--brand-success);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></span>
+            Node Protected (Port 5002)
         </div>
 
         <div class="card mb-4" style="background: var(--bg-success-subtle); border-color: var(--brand-success-glow);">
@@ -254,8 +272,14 @@
             </div>
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <span class="telemetry-status {{ 'telemetry-status-danger' if result.ml_blocked else 'telemetry-status-success' }}">
-                        {{ '⚠️ SQL INJECTION' if result.ml_blocked else '✅ LEGITIMATE' }}
+                    <span class="telemetry-status {{ 'telemetry-status-danger' if result.ml_blocked else 'telemetry-status-success' }} d-inline-flex align-items-center" style="gap: 6px;">
+                        {% if result.ml_blocked %}
+                            <span class="inline-svg-icon" style="font-size: 0.9rem; color: var(--brand-danger);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
+                            SQL INJECTION
+                        {% else %}
+                            <span class="inline-svg-icon" style="font-size: 0.9rem; color: var(--brand-success);"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+                            LEGITIMATE
+                        {% endif %}
                     </span>
                     <div class="text-right">
                         <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight: 600;">Tingkat Keyakinan</div>
@@ -450,12 +474,18 @@
             badgeHtml = `<span class="badge-ml" style="background:transparent; border: 1px solid var(--border-color); color: var(--text-muted);">${text}</span>`;
             liveWrap.style.display = 'none';
         } else if (state === 'sqli') {
-            badgeHtml = `<span class="badge-ml badge-vuln">⚠️ THREAT DETECTED</span>`;
+            badgeHtml = `<span class="badge-ml badge-vuln d-inline-flex align-items-center" style="gap: 4px;">
+                <span class="inline-svg-icon" style="font-size: 0.75rem;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>
+                THREAT DETECTED
+            </span>`;
             liveFill.style.width = `${Math.round(conf*100)}%`;
             liveFill.style.background = 'var(--brand-danger)';
             liveWrap.style.display = 'block';
         } else if (state === 'legit') {
-            badgeHtml = `<span class="badge-ml badge-protected">✅ CLEAR</span>`;
+            badgeHtml = `<span class="badge-ml badge-protected d-inline-flex align-items-center" style="gap: 4px;">
+                <span class="inline-svg-icon" style="font-size: 0.75rem;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+                CLEAR
+            </span>`;
             liveFill.style.width = `${Math.round(conf*100)}%`;
             liveFill.style.background = 'var(--brand-success)';
             liveWrap.style.display = 'block';
