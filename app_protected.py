@@ -28,7 +28,10 @@ from flask import (
     request,
     session,
     url_for,
+    abort,
 )
+import json
+from datetime import datetime
 
 from middleware import SQLiDetector
 
@@ -242,14 +245,26 @@ def ml_sqli_guard() -> None:
         )
 
         if label == "sqli":
-            session["blocked_payload"] = value
-            session["blocked_field"] = field_name
-            session["blocked_confidence"] = round(confidence, 6)
-            session["blocked_proba_map"] = {
-                k: round(v, 6) for k, v in proba_map.items()
-            }
-            # Gunakan return dengan response agar Flask langsung memakai ini
-            return redirect(url_for("blocked"))  # type: ignore[return-value]
+            # Forensic logging: timestamp, client IP, payload, confidence, proba_map
+            client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+            timestamp = datetime.utcnow().isoformat() + "Z"
+            try:
+                proba_serial = json.dumps({k: round(v, 6) for k, v in proba_map.items()})
+            except Exception:
+                proba_serial = str(proba_map)
+
+            logger.warning(
+                "[FORNSIC] time=%s ip=%s field=%s confidence=%.6f payload=%r proba=%s",
+                timestamp,
+                client_ip,
+                field_name,
+                float(confidence),
+                value,
+                proba_serial,
+            )
+
+            # Kembalikan HTTP 403 Forbidden sebagai aksi blok
+            abort(403)
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────

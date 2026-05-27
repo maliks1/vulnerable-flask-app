@@ -1,193 +1,186 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard — SQLi ML Lab{% endblock %}
+{% block title %}Dashboard - SQLi ML Lab{% endblock %}
 
 {% block container_style %}max-width: 900px;{% endblock %}
 
 {% block head_extra %}
 <style>
-    /* ── Component: Welcome Hero ─────────────────────────────────────────── */
+    /* Component: Welcome Hero */
     .welcome-hero {
-        background: var(--gradient-success);
-        border: 1px solid rgba(63, 185, 80, 0.4);
-        border-radius: 16px;
-        padding: 36px 32px;
-        margin-bottom: 32px;
-        box-shadow: 0 12px 32px rgba(26, 58, 42, 0.2);
-        backdrop-filter: var(--blur-xl);
+        background: var(--bg-success-subtle);
+        border: 1px solid var(--brand-success-glow);
+        border-radius: 8px;
+        padding: 28px 24px;
+        margin-bottom: 28px;
     }
     .welcome-hero .avatar {
-        width: 64px;
-        height: 64px;
+        width: 52px;
+        height: 52px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--brand-primary), #1f6feb);
+        background: var(--brand-primary);
+        color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.8rem;
+        font-size: 1.25rem;
         flex-shrink: 0;
-        box-shadow: 0 4px 16px var(--brand-primary-glow);
     }
     .welcome-hero .welcome-title {
-        font-size: 1.6rem;
-        font-weight: 800;
-        color: #56d364;
-        letter-spacing: -0.01em;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--brand-success);
     }
     .welcome-hero .welcome-sub {
-        color: var(--text-primary);
-        font-size: 0.95rem;
-        margin-top: 4px;
-        opacity: 0.9;
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        margin-top: 6px;
     }
 
-    /* ── Component: Stat Tiles ───────────────────────────────────────────── */
+    /* Component: Stat Tiles */
     .stat-tile {
         background: var(--bg-card);
-        border: 1px solid var(--card-border);
-        border-radius: 12px;
-        padding: 24px 20px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px 16px;
         text-align: center;
-        transition: transform var(--transition-smooth), border-color var(--transition-fast);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        transition: all var(--transition-smooth);
+        box-shadow: var(--shadow-sm);
         height: 100%;
     }
     .stat-tile:hover {
-        transform: translateY(-4px);
-        border-color: rgba(88, 166, 255, 0.3);
+        border-color: var(--brand-primary);
+        box-shadow: var(--shadow-md);
     }
-    .stat-tile .stat-icon { font-size: 2rem; line-height: 1; margin-bottom: 10px; }
-    .stat-tile .stat-val  { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
-    .stat-tile .stat-lbl  { font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-top: 4px; }
+    .stat-tile .stat-icon { font-size: 1.6rem; line-height: 1; margin-bottom: 10px; }
+    .stat-tile .stat-val  { font-size: 1.2rem; font-weight: 700; }
+    .stat-tile .stat-lbl  { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 4px; }
 
-    /* ── Component: Nav Card Links ───────────────────────────────────────── */
+    /* Component: Nav Card Links */
     .nav-card-link {
         display: flex;
         align-items: center;
         gap: 16px;
         padding: 16px 20px;
-        border: 1px solid var(--card-border);
-        border-radius: 10px;
-        background: rgba(22, 27, 34, 0.5);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--bg-card);
         text-decoration: none;
         color: var(--text-primary);
-        transition: all var(--transition-fast);
+        transition: all var(--transition-smooth);
         margin-bottom: 12px;
     }
     .nav-card-link:last-child { margin-bottom: 0; }
     .nav-card-link:hover {
-        background: rgba(33, 38, 45, 0.8);
+        background: var(--bg-gray-subtle);
         border-color: var(--brand-primary);
-        color: white;
+        color: var(--text-primary);
         transform: translateX(4px);
-        box-shadow: 0 4px 12px rgba(88, 166, 255, 0.1);
     }
-    .nav-card-link .nc-icon { font-size: 1.6rem; flex-shrink: 0; }
-    .nav-card-link .nc-title { font-weight: 700; font-size: 0.95rem; color: white; }
-    .nav-card-link .nc-sub   { font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; }
+    .nav-card-link .nc-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .nav-card-link .nc-title { font-weight: 700; font-size: 0.95rem; color: var(--text-primary); }
+    .nav-card-link .nc-sub   { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; }
 
-    /* ── Component: Session Rows ─────────────────────────────────────────── */
+    /* Component: Session Rows */
     .session-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 10px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-        font-size: 0.88rem;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.85rem;
     }
     .session-row:last-child { border-bottom: none; }
     .session-key { color: var(--text-secondary); font-weight: 500; }
-    .session-val { font-family: "Cascadia Code", monospace; font-size: 0.85rem; color: #79c0ff; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 4px; }
+    .session-val { font-family: var(--font-mono); font-size: 0.8rem; color: var(--brand-primary); background: var(--bg-gray-subtle); padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color); }
 
     .btn-logout {
-        background: rgba(33, 38, 45, 0.6);
-        border: 1px solid var(--card-border);
-        color: #ff7b72;
-        font-size: 0.9rem;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        color: var(--brand-danger);
+        font-size: 0.85rem;
         font-weight: 600;
-        padding: 8px 24px;
-        border-radius: 8px;
+        padding: 8px 20px;
+        border-radius: 6px;
         cursor: pointer;
-        transition: all var(--transition-fast);
+        transition: all var(--transition-smooth);
     }
     .btn-logout:hover {
         background: var(--brand-danger);
         color: white;
         border-color: var(--brand-danger);
-        box-shadow: 0 4px 12px var(--brand-danger-glow);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- ── Page heading ──────────────────────────────────────────────── -->
+<!-- Page heading -->
 <div class="d-flex align-items-center mb-4">
     <span class="page-title-icon">📊</span>
-    <h2 class="mb-0 mr-3" style="color: #56d364; font-weight: 800;">
+    <h2 class="mb-0 mr-3 font-weight-bold" style="color: var(--brand-success);">
         Dashboard Lab
     </h2>
-    <span class="badge-protected">🛡 SESI AKTIF</span>
+    <span class="badge-protected">Sesi Aktif</span>
 </div>
 
-<!-- ── Welcome hero ──────────────────────────────────────────────── -->
-<div class="welcome-hero d-flex align-items-center" style="gap: 24px;">
+<!-- Welcome hero -->
+<div class="welcome-hero d-flex align-items-center" style="gap: 20px;">
     <div class="avatar">👤</div>
     <div>
         <div class="welcome-title">Selamat datang, {{ username }}!</div>
         <div class="welcome-sub">
-            Login berhasil masuk melalui <strong style="color: white;">app terlindungi</strong>. <br/>
-            Sistem menggunakan parameterisasi query dan middleware pendeteksi anomali ML aktif.
+            Login berhasil diselesaikan menggunakan node <strong style="color: var(--text-primary);">app terlindungi</strong>. Sistem memproteksi data dengan parameterisasi kueri penuh dan filter berbasis pembelajaran mesin aktif.
         </div>
     </div>
 </div>
 
-<!-- ── Stat tiles ─────────────────────────────────────────────────── -->
-<div class="row mb-5" style="column-gap: 16px; padding: 0 15px;">
-    <div class="col-4 p-0 pr-2">
+<!-- Stat tiles -->
+<div class="row mb-5" style="column-gap: 16px; padding: 0 15px; margin: 0;">
+    <div class="col p-0 pr-2">
         <div class="stat-tile">
-            <div class="stat-icon">🛡</div>
-            <div class="stat-val" style="color: #56d364;">AKTIF</div>
+            <div class="stat-icon">🛡️</div>
+            <div class="stat-val" style="color: var(--brand-success);">AKTIF</div>
             <div class="stat-lbl">ML Guard</div>
         </div>
     </div>
-    <div class="col-4 p-0 px-1">
+    <div class="col p-0 px-1">
         <div class="stat-tile">
-            <div class="stat-icon">🔒</div>
-            <div class="stat-val" style="color: #79c0ff;">Aman</div>
-            <div class="stat-lbl">Query</div>
+            <div class="stat-icon">✅</div>
+            <div class="stat-val" style="color: var(--brand-primary);">Aman</div>
+            <div class="stat-lbl">Kueri SQL</div>
         </div>
     </div>
-    <div class="col-4 p-0 pl-2">
+    <div class="col p-0 pl-2">
         <div class="stat-tile">
-            <div class="stat-icon">🤖</div>
-            <div class="stat-val" style="color: #d2a8ff;">NB</div>
-            <div class="stat-lbl">Model</div>
+            <div class="stat-icon">⚙️</div>
+            <div class="stat-val" style="color: var(--hdr-purple-text);">NB Model</div>
+            <div class="stat-lbl">Algoritma WAF</div>
         </div>
     </div>
 </div>
 
-<!-- ── Navigasi Cepat ─────────────────────────────────────────────── -->
+<!-- Navigasi Cepat -->
 <div class="card mb-5">
     <div class="card-header hdr-blue">
-        <span style="font-size: 1.1em; margin-right: 6px;">🔗</span> Navigasi Modul Lab
+        <strong>Navigasi Modul Lab</strong>
     </div>
     <div class="card-body p-4">
         <a class="nav-card-link" href="{{ url_for('compare') }}">
             <span class="nc-icon">🔬</span>
             <div>
-                <div class="nc-title">Halaman Komparasi Visual</div>
+                <div class="nc-title">Visual Compare Lab</div>
                 <div class="nc-sub">
-                    Bandingkan kode rentan vs kode yang dilindungi secara berdampingan. Periksa metil True/False Positive.
+                    Bandingkan respon aplikasi rentan vs aman secara berdampingan. Evaluasi kinerja deteksi model secara interaktif.
                 </div>
             </div>
         </a>
 
         <a class="nav-card-link" href="{{ url_for('protected_login') }}">
-            <span class="nc-icon">🛡</span>
+            <span class="nc-icon">🔒</span>
             <div>
-                <div class="nc-title">Protected Login API</div>
+                <div class="nc-title">Login Terlindungi API</div>
                 <div class="nc-sub">
-                    Uji form login dengan ML middleware aktif, termasuk live prediksi payload.
+                    Eksperimen login pada pintu gerbang API yang diawasi model kecerdasan buatan. Dilengkapi live prediksi parameter.
                 </div>
             </div>
         </a>
@@ -195,37 +188,37 @@
         <a class="nav-card-link" href="http://localhost:5001" target="_blank" rel="noopener">
             <span class="nc-icon">⚠️</span>
             <div>
-                <div class="nc-title" style="color: #ff7b72;">App Rentan (:5001) <small>↗</small></div>
+                <div class="nc-title" style="color: var(--brand-danger);">App Rentan (:5001) <small>&neararr;</small></div>
                 <div class="nc-sub">
-                    Buka <code>main.py</code> (Unprotected App) di tab baru. Eksploitasi f-string SQL injection.
+                    Buka antarmuka aplikasi tanpa proteksi di tab baru. Uji kerentanan bypass autentikasi secara konvensional.
                 </div>
             </div>
         </a>
     </div>
 </div>
 
-<!-- ── Info Grid / Session Info ────────────────────────────────────── -->
+<!-- Info Grid / Session Info -->
 <div class="row">
     <div class="col-md-6 mb-4">
         <div class="card h-100">
             <div class="card-header hdr-gray">
-                <span class="mr-2">🔐</span> Info Sesi
+                <strong>Informasi Sesi Aktif</strong>
             </div>
             <div class="card-body">
                 <div class="session-row">
-                    <span class="session-key">Otentikasi</span>
+                    <span class="session-key">Otentikasi Klien</span>
                     <span class="session-val">Parameterized SQL</span>
                 </div>
                 <div class="session-row">
-                    <span class="session-key">Model Deteksi</span>
+                    <span class="session-key">Engine Validasi</span>
                     <span class="session-val">model_sqli_nb.pkl</span>
                 </div>
                 <div class="session-row">
-                    <span class="session-key">Interceptor</span>
-                    <span class="session-val" style="color: #56d364;">hook: before_request</span>
+                    <span class="session-key">WAF Interceptor</span>
+                    <span class="session-val" style="color: var(--brand-success);">before_request Hook</span>
                 </div>
                 <div class="session-row">
-                    <span class="session-key">Port Network</span>
+                    <span class="session-key">Port Protokol</span>
                     <span class="session-val">5002</span>
                 </div>
             </div>
@@ -235,21 +228,21 @@
     <div class="col-md-6 mb-4">
         <div class="card h-100">
             <div class="card-header hdr-purple">
-                <span class="mr-2">📋</span> Keamanan Berlapis
+                <strong>Mekanisme Pertahanan Berlapis</strong>
             </div>
-            <div class="card-body" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7;">
+            <div class="card-body" style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.7;">
                 <ol class="pl-3 mb-0">
                     <li class="mb-2">
-                        <strong style="color: var(--text-primary);">Pre-Validation (ML Middleware)</strong> —
-                        Payload input diperiksa model <em>Naive Bayes</em> sebelum controller dipanggil.
+                        <strong style="color: var(--text-primary);">Pre-Validation (WAF ML)</strong><br/>
+                        Payload masukan dari formulir dibedah oleh model <em>Naive Bayes</em> di server-side sebelum parsing logic dimulai.
                     </li>
                     <li class="mb-2">
-                        <strong style="color: var(--text-primary);">Data Plane (Parameterized)</strong> —
-                        Eksekusi autentikasi dipisahkan dari interpolasi string. Relasional DB kebal manipulasi.
+                        <strong style="color: var(--text-primary);">Parameterized Queries</strong><br/>
+                        Eksekusi perintah database SQLite dipisahkan dari evaluasi variabel masukan kueri (anti-injection).
                     </li>
                     <li>
-                        <strong style="color: var(--text-primary);">Zero Error Dump</strong> —
-                        Stack traces & SQLite errors tidak diekspos ke klien.
+                        <strong style="color: var(--text-primary);">Safe Error Handling</strong><br/>
+                        Informasi internal stack trace disembunyikan sepenuhnya dari respon klien untuk mencegah kebocoran informasi.
                     </li>
                 </ol>
             </div>
@@ -257,15 +250,14 @@
     </div>
 </div>
 
-<!-- ── Logout ─────────────────────────────────────────────────────── -->
+<!-- Logout -->
 <hr class="mt-2 mb-4" />
 <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap: 16px; margin-bottom: 24px;">
     <div style="font-size: 0.85rem; color: var(--text-muted);">
-        Akses sebagai <strong style="color: var(--text-primary);">{{ username }}</strong>, 
-        terkoneksi pada node aman.
+        Status masuk: <strong style="color: var(--text-primary);">{{ username }}</strong>, terkoneksi pada port terlindung.
     </div>
     <form method="POST" action="{{ url_for('logout') }}" style="margin: 0;">
-        <button type="submit" class="btn-logout">⏏ Akhiri Sesi</button>
+        <button type="submit" class="btn-logout">Akhiri Sesi Lab</button>
     </form>
 </div>
 

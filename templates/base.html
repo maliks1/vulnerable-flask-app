@@ -1,50 +1,252 @@
 <!doctype html>
 <html lang="id">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}SQLi ML Lab{% endblock %}</title>
-    
-    <!-- Google Fonts for Modern Typography -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
-    
-    <!-- Custom Unified Stylesheet -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-    
-    {% block head_extra %}{% endblock %}
-</head>
-<body>
-    <div class="container-fluid py-5 px-3 px-md-4" style="{% block container_style %}max-width: 860px;{% endblock %}">
-        
-        <!-- Flash messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages-container mb-4">
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
 
-        <!-- Main Content Block -->
-        {% block content %}{% endblock %}
-        
-    </div><!-- /container -->
+    <!-- Google Fonts for Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400;600&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Bootstrap CSS -->
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+
+    <!-- Custom Unified Stylesheet -->
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+
+    <!-- Immediate Theme Initialization Script (Avoids Flash of Unstyled Theme) -->
+    <script>
+      (function () {
+        const savedTheme = localStorage.getItem("theme") || "dark";
+        if (savedTheme === "light") {
+          document.documentElement.classList.add("theme-light");
+        } else {
+          document.documentElement.classList.remove("theme-light");
+        }
+      })();
+    </script>
+
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body>
+    {% set is_protected = '5002' in request.host %}
+
+    <!-- Academic Header / Navbar -->
+    <header class="academic-navbar">
+      <div class="navbar-brand-group">
+        <h1 class="navbar-brand-title">SQLi Detection Lab</h1>
+        {% if is_protected %}
+        <span class="navbar-brand-badge badge-protected">Protected App</span>
+        {% else %}
+        <span class="navbar-brand-badge badge-vuln">Vulnerable App</span>
+        {% endif %}
+      </div>
+
+      <div class="navbar-actions">
+        <nav>
+          <ul class="navbar-nav-links">
+            <!-- Dynamic Navigation based on current active port -->
+            {% if 'user' in session %}
+            <li>
+              <a
+                href="{{ url_for('home') }}"
+                class="navbar-nav-link {% if request.path == '/home' %}active{% endif %}"
+                >Dashboard</a
+              >
+            </li>
+            {% endif %} {% if is_protected %}
+            <li>
+              <a href="http://localhost:5001/" class="navbar-nav-link"
+                >Vulnerable Mode</a
+              >
+            </li>
+            <li>
+              <a
+                href="{{ url_for('protected_login') }}"
+                class="navbar-nav-link {% if request.path == '/protected-login' or request.path == '/' %}active{% endif %}"
+                >Protected Login</a
+              >
+            </li>
+            <li>
+              <a
+                href="{{ url_for('compare') }}"
+                class="navbar-nav-link {% if request.path == '/compare' %}active{% endif %}"
+                >Visual Compare</a
+              >
+            </li>
+            {% else %}
+            <li>
+              <a
+                href="{{ url_for('login') }}"
+                class="navbar-nav-link {% if request.path == '/' %}active{% endif %}"
+                >Vulnerable Login</a
+              >
+            </li>
+            <li>
+              <a
+                href="http://localhost:5002/protected-login"
+                class="navbar-nav-link"
+                >Protected Mode</a
+              >
+            </li>
+            <li>
+              <a href="http://localhost:5002/compare" class="navbar-nav-link"
+                >Visual Compare</a
+              >
+            </li>
+            {% endif %} {% if 'user' in session %}
+            <li>
+              <!-- Standard logout post or simple click depending on app -->
+              <form
+                action="{{ url_for('logout') if is_protected else url_for('login') }}"
+                method="{% if is_protected %}POST{% else %}GET{% endif %}"
+                style="display: inline; margin: 0"
+              >
+                <button
+                  type="submit"
+                  class="navbar-nav-link"
+                  style="
+                    background: none;
+                    border: none;
+                    padding: 6px 12px;
+                    cursor: pointer;
+                  "
+                >
+                  Logout
+                </button>
+              </form>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+
+        <!-- Minimalist Theme Toggle Button -->
+        <button
+          id="themeToggle"
+          class="theme-toggle-btn"
+          aria-label="Toggle Theme"
+          title="Toggle Light/Dark Mode"
+        >
+          <!-- Sun Icon -->
+          <svg
+            id="sunIcon"
+            class="d-none"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 9h-1m14.071-7.071l-.707.707M6.343 17.657l-.707.707m2.828-9.9a5 5 0 117.072 0l-.707.707M17.657 17.657l-.707-.707M6.343 6.343L5.636 7.05"
+            />
+          </svg>
+          <!-- Moon Icon -->
+          <svg
+            id="moonIcon"
+            class="d-none"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div
+      class="container py-5 px-3 px-md-4"
+      style="{% block container_style %}max-width: 860px;{% endblock %}"
+    >
+      <!-- Flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %}
+      <div class="flash-messages-container mb-4">
+        {% for category, message in messages %}
+        <div
+          class="alert alert-{{ 'danger' if category == 'error' or category == 'danger' else ('warning' if category == 'warning' else 'success') }} alert-dismissible fade show"
+          role="alert"
+        >
+          {{ message }}
+          <button
+            type="button"
+            class="close"
+            data-dismiss="alert"
+            aria-label="Close"
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %} {% endwith %}
+
+      <!-- Main Content Block -->
+      {% block content %}{% endblock %}
+    </div>
+    <!-- /container -->
 
     <!-- Global Scripts -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Theme Toggler Logic -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const themeToggleBtn = document.getElementById("themeToggle");
+        const sunIcon = document.getElementById("sunIcon");
+        const moonIcon = document.getElementById("moonIcon");
+
+        function updateIcons(isLight) {
+          if (isLight) {
+            sunIcon.classList.add("d-none");
+            moonIcon.classList.remove("d-none");
+          } else {
+            moonIcon.classList.add("d-none");
+            sunIcon.classList.remove("d-none");
+          }
+        }
+
+        // Check initial theme state to show correct icon
+        const isLight =
+          document.documentElement.classList.contains("theme-light");
+        updateIcons(isLight);
+
+        themeToggleBtn.addEventListener("click", function () {
+          const currentIsLight =
+            document.documentElement.classList.contains("theme-light");
+          if (currentIsLight) {
+            document.documentElement.classList.remove("theme-light");
+            localStorage.setItem("theme", "dark");
+            updateIcons(false);
+          } else {
+            document.documentElement.classList.add("theme-light");
+            localStorage.setItem("theme", "light");
+            updateIcons(true);
+          }
+        });
+      });
+    </script>
     {% block scripts %}{% endblock %}
-</body>
+  </body>
 </html>

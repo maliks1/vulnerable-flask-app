@@ -1,100 +1,96 @@
 {% extends "base.html" %}
 
-{% block title %}Request Mitigated — SQLi Guard{% endblock %}
+{% block title %}Koneksi Ditolak - SQLi Guard{% endblock %}
 
 {% block container_style %}max-width: 760px;{% endblock %}
 
 {% block head_extra %}
 <style>
-    /* ── Component: Blocked Hero ────────────────────────────────────────── */
+    /* Component: Blocked Hero */
     .blocked-hero {
-        background: var(--gradient-danger);
-        border: 1px solid rgba(248,81,73,0.5);
-        border-radius: 16px;
-        padding: 48px 32px;
+        background: var(--bg-danger-subtle);
+        border: 1px solid var(--brand-danger-glow);
+        border-radius: 8px;
+        padding: 40px 24px;
         text-align: center;
-        margin-bottom: 32px;
-        box-shadow: 0 16px 48px rgba(248,81,73,0.15);
-        backdrop-filter: var(--blur-xl);
+        margin-bottom: 28px;
     }
     .blocked-hero .shield-icon {
-        font-size: 4rem;
+        font-size: 3.5rem;
         line-height: 1;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
         display: block;
-        filter: drop-shadow(0 0 24px rgba(248,81,73,0.4));
+        color: var(--brand-danger);
     }
     .blocked-hero .blocked-title {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #ff7b72;
-        letter-spacing: 0.05em;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--brand-danger);
+        letter-spacing: 0.04em;
         margin-bottom: 8px;
         text-transform: uppercase;
     }
     .blocked-hero .blocked-sub {
-        color: var(--text-primary);
-        font-size: 1.05rem;
-        opacity: 0.9;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
     }
 
-    /* ── Component: Confidence Bar ──────────────────────────────────────── */
+    /* Component: Confidence Bar */
     .conf-bar-track {
-        background: rgba(0,0,0,0.4);
-        border: 1px solid rgba(255,255,255,0.05);
-        border-radius: 8px;
+        background: var(--bg-input);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
         height: 12px;
         overflow: hidden;
     }
     .conf-bar-fill {
         height: 100%;
-        border-radius: 8px;
+        border-radius: 6px;
         transition: width 0.8s cubic-bezier(0.25, 1, 0.5, 1);
     }
-    .conf-high   { background: linear-gradient(90deg, var(--brand-danger), #ff7b72); box-shadow: 0 0 12px rgba(248,81,73,0.6); }
-    .conf-medium { background: linear-gradient(90deg, var(--brand-warning), #e3b341); }
+    .conf-high   { background: var(--brand-danger); }
+    .conf-medium { background: var(--brand-warning); }
 
-    /* ── Component: Proba row ───────────────────────────────────────────── */
+    /* Component: Proba row */
     .proba-row {
         display: flex;
         align-items: center;
         gap: 16px;
         padding: 10px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-        font-size: 0.9rem;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.85rem;
     }
     .proba-row:last-child { border-bottom: none; }
-    .proba-label { width: 140px; flex-shrink: 0; font-weight: 600; }
+    .proba-label { width: 140px; flex-shrink: 0; font-weight: 600; color: var(--text-primary); }
     .proba-bar-wrap {
         flex: 1;
-        background: rgba(0,0,0,0.3);
-        border-radius: 6px;
+        background: var(--bg-input);
+        border-radius: 4px;
         height: 8px;
         overflow: hidden;
+        border: 1px solid var(--border-color);
     }
-    .proba-bar-fill { height: 100%; border-radius: 6px; }
+    .proba-bar-fill { height: 100%; border-radius: 4px; }
     .proba-sqli  { background: var(--brand-danger); }
     .proba-legit { background: var(--brand-success); }
     .proba-other { background: var(--brand-primary); }
     .proba-pct {
         width: 60px;
         text-align: right;
-        font-family: "Cascadia Code", monospace;
+        font-family: var(--font-mono);
         font-size: 0.85rem;
         flex-shrink: 0;
-        color: var(--text-primary);
+        color: var(--text-secondary);
     }
 
-    /* ── Mixins ─────────────────────────────────────────────────────────── */
     .field-badge {
         display: inline-block;
-        background: rgba(88,166,255,0.1);
-        border: 1px solid var(--brand-primary);
-        border-radius: 6px;
+        background: var(--bg-primary-subtle);
+        border: 1px solid var(--brand-primary-glow);
+        border-radius: 4px;
         padding: 2px 10px;
-        font-family: inherit;
-        font-size: 0.85rem;
-        color: #79c0ff;
+        font-size: 0.82rem;
+        color: var(--brand-primary);
         font-weight: 600;
     }
 </style>
@@ -102,71 +98,71 @@
 
 {% block content %}
 
-<!-- ── Hero banner ───────────────────────────────────────────────── -->
+<!-- Hero banner -->
 <div class="blocked-hero mt-2">
-    <span class="shield-icon">🛑</span>
-    <div class="blocked-title">KONEKSI DITOLAK</div>
+    <span class="shield-icon">🛡️</span>
+    <div class="blocked-title">Koneksi Ditolak</div>
     <div class="blocked-sub">
-        Pola serangan injeksi tertangkap. <br/>Akses layer menuju Database berhasil digagalkan.
+        Pola serangan injeksi SQL terdeteksi oleh mesin pintar. <br/>Permintaan data menuju server basis data berhasil dimitigasi.
     </div>
 </div>
 
-<!-- ── Payload terdeteksi ────────────────────────────────────────── -->
-<div class="card mb-4" style="border-color: rgba(248,81,73,0.3);">
+<!-- Payload terdeteksi -->
+<div class="card mb-4" style="border-color: var(--brand-danger-glow);">
     <div class="card-header hdr-red">
-        <strong>⚠️ Bukti Eksekusi Intrusi</strong>
+        <strong>Bukti Eksekusi Intrusi (Payload)</strong>
         <span style="float:right;">
-            Origin: <span class="field-badge" style="border-color:rgba(248,81,73,0.3); color:#ff7b72; background:transparent;">{{ field }}</span>
+            Origin: <span class="field-badge" style="border-color: var(--brand-danger-glow); color: var(--brand-danger); background:transparent;">{{ field }}</span>
         </span>
     </div>
     <div class="card-body p-4">
-        <pre style="color:#ff7b72; background:rgba(61,26,26,0.3); border-color:rgba(248,81,73,0.2); font-size:1rem;">{{ payload }}</pre>
+        <pre style="color: var(--brand-danger); background: var(--bg-danger-subtle); border-color: var(--brand-danger-glow); font-size:1rem;">{{ payload }}</pre>
         <div class="mt-3" style="font-size:0.85rem; color:var(--text-secondary);">
-            String di atas direkam dari antarmuka input <strong>{{ field }}</strong> dan ditolak sebelum <code>sqlite3.connect()</code> diinisiasi.
+            Karakter di atas direkam dari antarmuka input <strong>{{ field }}</strong> dan ditolak oleh middleware sebelum query dirakit atau dieksekusi ke engine SQLite.
         </div>
     </div>
 </div>
 
-<!-- ── Confidence score ──────────────────────────────────────────── -->
+<!-- Confidence score -->
 <div class="card mb-4">
     <div class="card-header hdr-gray">
-        <strong>🔬 Machine Learning Evaluation Score</strong>
+        <strong>Machine Learning Evaluation Score</strong>
     </div>
     <div class="card-body p-4">
         {% set pct = (confidence * 100) | round(2) %}
         {% if confidence >= 0.80 %}
             {% set bar_class = "conf-high" %}
             {% set conf_label = "CRITICAL / SANGAT YAKIN" %}
-            {% set conf_color = "#ff7b72" %}
+            {% set conf_color = "var(--brand-danger)" %}
         {% else %}
             {% set bar_class = "conf-medium" %}
-            {% set conf_label = "WARNING / ANOMALI TERINDIKASI" %}
-            {% set conf_color = "#e3b341" %}
+            {% set conf_label = "WARNING / ANOMALI TERDETEKSI" %}
+            {% set conf_color = "var(--brand-warning)" %}
         {% endif %}
 
         <div class="d-flex justify-content-between align-items-baseline mb-3">
-            <span style="font-size:0.95rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">
+            <span style="font-size:0.88rem; color:var(--text-secondary); font-weight:600; text-transform:uppercase;">
                 Bobot Deteksi SQLi
             </span>
-            <span style="font-size:1.8rem; font-weight:800; color:{{ conf_color }}; font-family:'Cascadia Code',monospace;">
+            <span style="font-size:1.8rem; font-weight:800; color:{{ conf_color }}; font-family: var(--font-mono);">
                 {{ pct }}%
-                <small style="font-size:0.75rem; display:block; text-align:right; color:var(--text-secondary); font-family:inherit;">{{ conf_label }}</small>
+                <small style="font-size:0.72rem; display:block; text-align:right; color:var(--text-secondary); font-family:var(--font-sans); font-weight: 600; margin-top: 2px;">{{ conf_label }}</small>
             </span>
         </div>
         <div class="conf-bar-track mb-3">
             <div class="conf-bar-fill {{ bar_class }}" style="width:{{ pct }}%"></div>
         </div>
         <div style="font-size:0.8rem; color:var(--text-muted);">
-            Threshold terminasi koneksi terkonfigurasi di atas <strong>50%</strong>.
+            Threshold pemblokiran koneksi aktif di atas bobot sensitivitas <strong>50%</strong>.
         </div>
     </div>
 </div>
 
-<!-- ── Distribusi probabilitas ───────────────────────────────────── -->
+<!-- Distribusi probabilitas -->
 {% if proba_map %}
 <div class="card mb-5">
     <div class="card-header hdr-blue">
-        <strong>📊 Distribusi Kelas Model (predict_proba)</strong>
+        <strong>Distribusi Kelas Model (predict_proba)</strong>
     </div>
     <div class="card-body p-4">
         {% for cls, prob in proba_map.items() | sort(attribute='1', reverse=True) %}
@@ -174,10 +170,10 @@
             {% set pct_bar = (prob * 100) | round(2) %}
 
             {% if cls_lower in ('1', '1.0', 'sqli', 'sql injection', 'malicious', 'attack') %}
-                {% set cls_display = '🔴 MALICIOUS' %}
+                {% set cls_display = '⚠️ MALICIOUS' %}
                 {% set bar_cls = 'proba-sqli' %}
             {% elif cls_lower in ('0', '0.0', 'legitimate', 'normal', 'safe') %}
-                {% set cls_display = '🟢 LEGITIMATE' %}
+                {% set cls_display = '✅ LEGITIMATE' %}
                 {% set bar_cls = 'proba-legit' %}
             {% else %}
                 {% set cls_display = cls %}
@@ -196,14 +192,14 @@
 </div>
 {% endif %}
 
-<!-- ── Navigasi ───────────────────────────────────────────────────── -->
+<!-- Navigasi -->
 <hr class="mt-2 mb-4" />
 <div class="d-flex flex-wrap gap-3 align-items-center mb-5" style="gap:12px;">
-    <a href="{{ url_for('protected_login') }}" class="btn btn-secondary px-4 py-2 font-weight-bold" style="background:rgba(255,255,255,0.1); border:none;">
-        ← Kembali
+    <a href="{{ url_for('protected_login') }}" class="btn btn-secondary px-4 py-2 font-weight-bold" style="background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-primary);">
+        &larr; Kembali
     </a>
     <a href="{{ url_for('compare') }}" class="btn btn-exec" style="width:auto; padding-left:24px; padding-right:24px;">
-        🔬 Lanjutkan Ke Lab Analisis Visual
+        Buka Visual Compare Lab
     </a>
 </div>
 

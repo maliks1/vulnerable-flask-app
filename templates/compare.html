@@ -1,93 +1,93 @@
 {% extends "base.html" %}
 
-{% block title %}Komparasi Laboratorium — SQLi ML Lab{% endblock %}
+{% block title %}Visual Compare Lab - SQLi ML Lab{% endblock %}
 
 {% block container_style %}max-width: 1300px;{% endblock %}
 
 {% block head_extra %}
 <style>
-    /* ── Component: Comparison Columns ────────────────────────────────────── */
-    .col-vulnerable { border-right: 1px dashed rgba(255,255,255,0.1); }
+    /* Component: Comparison Columns */
+    .col-vulnerable { border-right: 1px dashed var(--border-color); }
     @media (max-width: 767px) { 
-        .col-vulnerable { border-right: none; border-bottom: 1px dashed rgba(255,255,255,0.1); margin-bottom: 24px; padding-bottom: 24px; }
+        .col-vulnerable { border-right: none; border-bottom: 1px dashed var(--border-color); margin-bottom: 24px; padding-bottom: 24px; }
     }
 
-    .col-title { font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; }
-    .title-vuln { color: #ff7b72; }
-    .title-protect { color: #56d364; }
+    .col-title { font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
+    .title-vuln { color: var(--brand-danger); }
+    .title-protect { color: var(--brand-success); }
 
-    .verdict-label { font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
-    .verdict-label-success { color: #56d364; }
-    .verdict-label-warning { color: #e3b341; }
-    .verdict-label-danger { color: #ff7b72; }
+    .verdict-label { font-weight: 700; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+    .verdict-label-success { color: var(--brand-success); }
+    .verdict-label-warning { color: var(--brand-warning); }
+    .verdict-label-danger { color: var(--brand-danger); }
 
     .probability-label { font-weight: 600; }
-    .prob-label-danger { color: #ff7b72; }
-    .prob-label-success { color: #56d364; }
+    .prob-label-danger { color: var(--brand-danger); }
+    .prob-label-success { color: var(--brand-success); }
 
-    .telemetry-status { font-weight: 800; font-size: 1.2rem; }
-    .telemetry-status-danger { color: #ff7b72; }
-    .telemetry-status-success { color: #56d364; }
+    .telemetry-status { font-weight: 700; font-size: 1.15rem; }
+    .telemetry-status-danger { color: var(--brand-danger); }
+    .telemetry-status-success { color: var(--brand-success); }
 
-    /* ── Component: Status banners ────────────────────────────────────────── */
-    .status-panel { border-radius: 12px; padding: 16px 20px; transition: transform var(--transition-fast); backdrop-filter: var(--blur-xl); }
+    /* Component: Status banners */
+    .status-panel { border-radius: 6px; padding: 14px 18px; border: 1px solid var(--border-color); transition: all var(--transition-smooth); }
     
-    .status-blocked { background: var(--gradient-danger); border: 1px solid var(--brand-danger); }
-    .status-passed { background: var(--gradient-success); border: 1px solid var(--brand-success); }
-    .status-bypass { background: var(--gradient-danger); border: 1px solid rgba(248,81,73,0.5); box-shadow: 0 4px 16px var(--brand-danger-glow); }
-    .status-nologin { background: rgba(33,38,45,0.6); border: 1px solid var(--card-border); }
+    .status-blocked { background: var(--bg-danger-subtle); border-color: var(--brand-danger-glow); color: var(--brand-danger); }
+    .status-passed { background: var(--bg-success-subtle); border-color: var(--brand-success-glow); color: var(--brand-success); }
+    .status-bypass { background: var(--bg-danger-subtle); border-color: var(--brand-danger-glow); color: var(--brand-danger); }
+    .status-nologin { background: var(--bg-gray-subtle); border-color: var(--border-color); color: var(--text-secondary); }
 
-    /* ── Component: Confidence Bar ────────────────────────────────────────── */
-    .conf-bar-wrap { height: 10px; border-radius: 6px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); overflow: hidden; margin: 12px 0;}
+    /* Component: Confidence Bar */
+    .conf-bar-wrap { height: 10px; border-radius: 4px; background: var(--bg-input); border: 1px solid var(--border-color); overflow: hidden; margin: 12px 0;}
     .conf-bar-fill { height: 100%; transition: width 0.4s ease; }
     
-    .verdict-tp { background: var(--gradient-success); border: 1px solid var(--brand-success); box-shadow: 0 4px 16px var(--brand-success-glow); }
-    .verdict-fp { background: rgba(47, 36, 0, 0.8); border: 1px solid var(--brand-warning); }
-    .verdict-fn { background: var(--gradient-danger); border: 1px solid var(--brand-danger); box-shadow: 0 4px 16px var(--brand-danger-glow); }
-    .verdict-tn { background: var(--gradient-success); border: 1px solid var(--brand-success); }
+    .verdict-tp { background: var(--bg-success-subtle); border: 1px solid var(--brand-success-glow); color: var(--brand-success); }
+    .verdict-fp { background: var(--bg-warning-subtle); border: 1px solid var(--brand-warning-glow); color: var(--brand-warning); }
+    .verdict-fn { background: var(--bg-danger-subtle); border: 1px solid var(--brand-danger-glow); color: var(--brand-danger); }
+    .verdict-tn { background: var(--bg-success-subtle); border: 1px solid var(--brand-success-glow); color: var(--brand-success); }
 
-    /* ── Payload Buttons ──────────────────────────────────────────────────── */
+    /* Payload Buttons */
     .payload-btn {
-        background: rgba(33, 38, 45, 0.6);
-        border: 1px solid var(--card-border);
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
         color: var(--text-secondary);
-        font-family: 'Cascadia Code', monospace;
-        font-size: 0.8rem;
-        padding: 6px 12px;
-        border-radius: 6px;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        padding: 8px 12px;
+        border-radius: 4px;
         cursor: pointer;
         display: block;
         width: 100%;
         text-align: left;
         margin-bottom: 8px;
-        transition: all var(--transition-fast);
+        transition: all var(--transition-smooth);
     }
-    .payload-btn:hover { background: rgba(88,166,255,0.1); color: var(--text-primary); border-color: var(--brand-primary); }
+    .payload-btn:hover { background: var(--bg-primary-subtle); color: var(--brand-primary); border-color: var(--brand-primary); }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- ── Page heading ────────────────────────────────────────────────────── -->
+<!-- Page heading -->
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <div class="d-flex align-items-center">
-        <span class="page-title-icon" style="filter:none;">🔬</span>
+        <span class="page-title-icon">🔬</span>
         <div>
-            <h2 class="mb-0" style="color: var(--brand-primary); font-weight: 800;">Komparasi Simulasi</h2>
+            <h2 class="mb-0 font-weight-bold" style="color: var(--brand-primary);">Komparasi Simulasi</h2>
             <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 2px;">
-                Evaluasi model <code style="color:white; padding:0; background:transparent; border:none;">model_sqli_nb.pkl</code> secara side-by-side.
+                Evaluasi model klasifikasi <code>model_sqli_nb.pkl</code> secara side-by-side (interaktif).
             </div>
         </div>
     </div>
     <ul class="nav nav-pills" style="gap: 8px;">
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('protected_login') }}">🛡 Node Aman</a></li>
-        <li class="nav-item"><a class="nav-link active" href="{{ url_for('compare') }}">🔬 Analisis Visual</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('protected_login') }}">Node Aman</a></li>
+        <li class="nav-item"><a class="nav-link active" href="{{ url_for('compare') }}">Analisis Visual</a></li>
     </ul>
 </div>
 
-<!-- ── Input form card ──────────────────────────────────────────────────── -->
-<div class="card mb-4" style="border-color: rgba(88,166,255,0.4);">
+<!-- Input form card -->
+<div class="card mb-4">
     <div class="card-header hdr-blue">
-        <strong>⚙️ Injeksi Payload Parameter</strong>
+        <strong>Injeksi Payload Parameter</strong>
     </div>
     <div class="card-body p-4">
         <form method="POST" id="compareForm" autocomplete="off">
@@ -97,7 +97,7 @@
                         <label for="usernameInput" class="d-flex align-items-center justify-content-between">
                             Target SQLi (Username)
                             <div id="live-indicator-container">
-                                <span id="live-badge" class="badge-ml" style="background:transparent; border: 1px solid var(--text-muted); color: var(--text-muted);">MENUNGGU INPUT</span>
+                                <span id="live-badge" class="badge-ml" style="background:transparent; border: 1px solid var(--border-color); color: var(--text-muted);">MENUNGGU INPUT</span>
                             </div>
                         </label>
                         <input
@@ -106,7 +106,7 @@
                             id="usernameInput"
                             name="username"
                             value="{{ result.username if result else '' }}"
-                            placeholder="e.g. ' OR 1=1 --"
+                            placeholder="Contoh: ' OR '1'='1' --"
                             autofocus
                         />
                         <div class="conf-bar-wrap mt-2" id="live-conf-wrap" style="display:none;">
@@ -129,13 +129,13 @@
                 </div>
             </div>
             
-            <div class="d-flex align-items-center" style="gap:12px;">
+            <div class="d-flex align-items-center flex-wrap gap-2" style="gap:12px;">
                 <button type="submit" class="btn btn-exec" style="width: auto; flex: 1;">
                     Jalankan Simulasi Matriks
                 </button>
                 {% if result %}
-                <a href="{{ url_for('compare') }}" class="btn btn-secondary px-4 py-2" style="border-radius:8px; font-weight:600; background:rgba(255,255,255,0.1); border:none; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-                    ↺ Reset
+                <a href="{{ url_for('compare') }}" class="btn btn-secondary px-4 py-2 font-weight-bold" style="border-radius:6px; background:var(--bg-card); border:1px solid var(--border-color); color: var(--text-primary);">
+                    Reset
                 </a>
                 {% endif %}
             </div>
@@ -143,36 +143,42 @@
     </div>
 </div>
 
-<!-- ── Results ──────────────────────────────────────────────────────────── -->
+<!-- Results -->
 {% if result %}
 
-<!-- ── Verdict banner ───────────────────────────────────────────────────── -->
+<!-- Verdict banner -->
 {% set v = result.verdict %}
 {% set verdict_key = 'tp' if v.type == 'true_positive' else 'tn' if v.type == 'true_negative' else 'fp' if v.type == 'false_positive' else 'fn' %}
 {% set verdict_tone = 'success' if v.type in ('true_positive', 'true_negative') else 'warning' if v.type == 'false_positive' else 'danger' %}
-<div class="status-panel verdict-{{ verdict_key }} mb-4 d-flex align-items-center">
-    <span style="font-size: 2rem; margin-right: 16px; line-height: 1; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">{{ v.icon }}</span>
+<div class="status-panel verdict-{{ verdict_key }} mb-4 d-flex align-items-center" style="gap: 16px;">
+    <span style="font-size: 2.2rem; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));">
+        {% if v.type == 'true_positive' %}🎯
+        {% elif v.type == 'true_negative' %}✅
+        {% elif v.type == 'false_positive' %}⚠️
+        {% else %}❌
+        {% endif %}
+    </span>
     <div>
         <div class="verdict-label verdict-label-{{ verdict_tone }}">
             {{ v.label }}
-            <span class="badge-tech" style="font-weight:600; letter-spacing:0.05em; background:rgba(0,0,0,0.2); border:none;">Model Decision</span>
+            <span class="badge-tech" style="font-weight:700; letter-spacing:0.02em; font-size:0.65rem; padding: 2px 6px;">Model Decision</span>
         </div>
-        <div style="color: white; opacity: 0.9; font-size: 0.9rem; margin-top: 4px;">{{ v.msg }}</div>
+        <div style="color: var(--text-primary); font-size: 0.9rem; margin-top: 4px; font-weight: 500;">{{ v.msg }}</div>
     </div>
 </div>
 
-<!-- ── Two-column comparison ─────────────────────────────────────────────── -->
+<!-- Two-column comparison -->
 <div class="row mx-0">
 
-    <!-- ════════════ LIMITASI KIRI / VULNERABLE ════════════ -->
+    <!-- LIMITASI KIRI / VULNERABLE -->
     <div class="col-md-6 col-vulnerable px-0 pr-md-4">
         <div class="col-title title-vuln">
             ⚠️ Node Vulnerable (Port 5001)
         </div>
 
-        <div class="card mb-4" style="background: rgba(61,26,26,0.1); border-color: rgba(248,81,73,0.2);">
+        <div class="card mb-4" style="background: var(--bg-danger-subtle); border-color: var(--brand-danger-glow);">
             <div class="card-header hdr-red">
-                <strong><span style="opacity:0.8;">f-string</span> Query Evaluasi</strong>
+                <strong>Query Interpolasi Statis (f-string)</strong>
             </div>
             <div class="card-body p-3">
                 <pre style="background:transparent; border:none; box-shadow:none; padding:4px;"><span class="inject-static">SELECT * FROM users WHERE username = </span><span class="inject-quote">'</span><span class="inject-val">{{ result.username }}</span><span class="inject-quote">'</span><span class="inject-static"> AND password = </span><span class="inject-quote">'</span><span class="inject-val">{{ result.password }}</span><span class="inject-quote">'</span></pre>
@@ -183,23 +189,23 @@
         {% if result.vuln_results %}
             {% for entry in result.vuln_results %}
                 {% if entry.error %}
-                <div class="card mb-3" style="border-color: var(--brand-warning);">
-                    <div class="card-header hdr-yellow py-2 px-3"><strong>⚠️ Stmt {{ loop.index }} — SQL EXCEPTION</strong></div>
+                <div class="card mb-3" style="border-color: var(--brand-warning-glow);">
+                    <div class="card-header hdr-yellow py-2 px-3"><strong>Statement {{ loop.index }} &bull; SQL EXCEPTION</strong></div>
                     <div class="card-body p-3">
-                        <pre style="font-size:0.75rem; background:rgba(0,0,0,0.4);">{{ entry.stmt }}</pre>
-                        <div class="mt-2 text-warning" style="font-size:0.8rem; font-family:monospace;">{{ entry.error }}</div>
+                        <pre style="font-size:0.75rem;">{{ entry.stmt }}</pre>
+                        <div class="mt-2" style="font-size:0.8rem; font-family:var(--font-mono); color: var(--brand-warning);">{{ entry.error }}</div>
                     </div>
                 </div>
                 {% elif entry.columns %}
                 <div class="card mb-3">
                     <div class="card-header hdr-green py-2 px-3 d-flex justify-content-between align-items-center">
-                        <strong>✅ Stmt {{ loop.index }} — {{ entry.rows|length }} Baris</strong>
-                        {% if result.vuln_bypass and loop.first %}<span class="badge-tech font-weight-bold bg-success text-white">BYPASSED</span>{% endif %}
+                        <strong>Statement {{ loop.index }} &bull; {{ entry.rows|length }} Baris Record</strong>
+                        {% if result.vuln_bypass and loop.first %}<span class="badge badge-danger font-weight-bold">BYPASSED</span>{% endif %}
                     </div>
                     <div class="card-body p-0">
-                        <pre class="m-3 mt-3 mb-3" style="font-size:0.75rem; background:rgba(0,0,0,0.4);">{{ entry.stmt }}</pre>
+                        <pre class="m-3" style="font-size:0.75rem;">{{ entry.stmt }}</pre>
                         {% if entry.rows %}
-                        <div class="table-responsive" style="border-top:1px solid var(--card-border);">
+                        <div class="table-responsive" style="border-top:1px solid var(--border-color);">
                             <table class="table table-sm m-0">
                                 <thead>
                                     <tr>{% for col in entry.columns %}<th class="px-3">{{ col }}</th>{% endfor %}</tr>
@@ -214,9 +220,9 @@
                 </div>
                 {% else %}
                 <div class="card mb-3">
-                    <div class="card-header hdr-blue py-2 px-3"><strong>ℹ️ Stmt {{ loop.index }} — DML/DDL MENGUBAH STATE</strong></div>
+                    <div class="card-header hdr-blue py-2 px-3"><strong>Statement {{ loop.index }} &bull; DML/DDL STATE MODIFICATION</strong></div>
                     <div class="card-body p-3">
-                        <pre style="font-size:0.75rem; background:rgba(0,0,0,0.4);">{{ entry.stmt }}</pre>
+                        <pre style="font-size:0.75rem;">{{ entry.stmt }}</pre>
                     </div>
                 </div>
                 {% endif %}
@@ -224,36 +230,36 @@
         {% endif %}
 
         {% if result.vuln_bypass %}
-        <div class="status-panel status-bypass text-center">
-            <h5 class="font-weight-bold text-white mb-1">BYPASS DATABASE BERHASIL</h5>
-            <small class="text-white-50">Kondisi Tautologi terpenuhi.</small>
+        <div class="status-panel status-bypass text-center mb-4">
+            <h5 class="font-weight-bold mb-1">BYPASS DATABASE BERHASIL</h5>
+            <small class="opacity-80">Kondisi logika kueri selalu bernilai TRUE.</small>
         </div>
         {% else %}
-        <div class="status-panel status-nologin text-center">
-            <h6 class="font-weight-bold text-secondary mb-1">Akses Database Ditolak</h6>
-            <small class="text-white-50">Query tidak valid atau string literal tidak sesuai.</small>
+        <div class="status-panel status-nologin text-center mb-4">
+            <h6 class="font-weight-bold mb-1">Akses Database Gagal</h6>
+            <small class="opacity-80">Kueri aman atau database tidak mengembalikan baris.</small>
         </div>
         {% endif %}
     </div>
 
-    <!-- ════════════ LIMITASI KANAN / PROTECTED ════════════ -->
+    <!-- LIMITASI KANAN / PROTECTED -->
     <div class="col-md-6 px-0 pl-md-4">
         <div class="col-title title-protect">
             🛡️ Node Protected (Port 5002)
         </div>
 
-        <div class="card mb-4" style="background: rgba(26,58,42,0.1); border-color: rgba(63,185,80,0.2);">
-            <div class="card-header {{ 'hdr-red' if result.ml_blocked else 'hdr-green' }}">
+        <div class="card mb-4" style="background: var(--bg-success-subtle); border-color: var(--brand-success-glow);">
+            <div class="card-header hdr-green">
                 <strong>Telemetri Klasifikasi Model</strong>
             </div>
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <span class="telemetry-status {{ 'telemetry-status-danger' if result.ml_blocked else 'telemetry-status-success' }}">
-                        {{ '🔴 SQL INJECTION' if result.ml_blocked else '🟢 LEGITIMATE' }}
+                        {{ '⚠️ SQL INJECTION' if result.ml_blocked else '✅ LEGITIMATE' }}
                     </span>
                     <div class="text-right">
-                        <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase;">Tingkat Keyakinan</div>
-                        <div style="font-size:1.4rem; font-weight:800; font-family:monospace; color:white; line-height:1;">
+                        <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight: 600;">Tingkat Keyakinan</div>
+                        <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color: var(--text-primary); line-height:1;">
                             {{ (result.ml_confidence * 100)|round(1) }}%
                         </div>
                     </div>
@@ -263,18 +269,18 @@
                     <div class="conf-bar-fill js-ml-confidence-fill"></div>
                 </div>
 
-                <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; margin-bottom:8px;">Sebaran Matrix Probabilitas</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary); font-weight:700; text-transform:uppercase; margin-bottom:8px;">Distribusi Matrix Probabilitas</div>
                 {% for cls, prob in result.ml_proba_map.items() %}
                 {% set is_sqli_class = cls in ('1','1.0') or cls|lower in ('sqli','malicious') %}
                 <div class="d-flex justify-content-between align-items-center mb-2 js-probability-row" style="font-size:0.8rem;" data-prob="{{ prob }}" data-sqli-class="{{ 1 if is_sqli_class else 0 }}">
-                    <span class="probability-label {{ 'prob-label-danger' if is_sqli_class else 'prob-label-success' }}">
+                    <span class="probability-label {{ 'prob-label-danger' if is_sqli_class else 'prob-label-success' }} style="width: 100px; display: inline-block;">
                         {{ 'MALICIOUS' if is_sqli_class else 'LEGITIMATE' }}
                     </span>
                     <div class="d-flex align-items-center" style="gap:12px; flex:1; padding-left:16px;">
                         <div class="conf-bar-wrap my-0 js-probability-bar" style="flex:1; height:6px;">
                             <div class="conf-bar-fill js-probability-fill"></div>
                         </div>
-                        <span style="font-family:monospace; width:48px; text-align:right;">{{ (prob*100)|round(1) }}%</span>
+                        <span style="font-family: var(--font-mono); width:48px; text-align:right;">{{ (prob*100)|round(1) }}%</span>
                     </div>
                 </div>
                 {% endfor %}
@@ -282,19 +288,19 @@
         </div>
 
         <div class="card mb-4 mt-2">
-            <div class="card-header hdr-purple"><strong>🚦 Intervensi Guard</strong></div>
+            <div class="card-header hdr-purple"><strong>Intervensi ML Guard</strong></div>
             <div class="card-body p-4">
                 {% if result.ml_blocked %}
                 <div class="status-panel status-blocked">
-                    <h5 class="font-weight-bold text-white mb-2">AKSES DIHENTIKAN</h5>
-                    <p class="text-white-50 mb-3" style="font-size:0.85rem;">Hook aplikasi mencegah parser DB terekspos terhadap input berbahaya.</p>
-                    <pre style="font-size:0.8rem; background:rgba(0,0,0,0.3); border:none; padding:10px;"><span style="color:var(--brand-danger);">HTTP 302 Redirect</span> → /blocked<br><span style="color:var(--text-muted);">// Query pipeline tidak pernah dipanggil</span></pre>
+                    <h5 class="font-weight-bold mb-2">AKSES DIHENTIKAN</h5>
+                    <p class="mb-3 opacity-80" style="font-size:0.85rem;">Middleware mencegah parser database terinfeksi kueri berbahaya.</p>
+                    <pre style="font-size:0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); padding:10px;"><span style="color:var(--brand-danger);">HTTP 302 Redirect</span> &rarr; /blocked<br><span style="color:var(--text-muted);">// Alur kueri dihentikan seketika</span></pre>
                 </div>
                 {% else %}
                 <div class="status-panel status-passed">
-                    <h5 class="font-weight-bold text-white mb-2">AKSES DITERUSKAN</h5>
-                    <p class="text-white-50 mb-3" style="font-size:0.85rem;">Input aman dialirkan ke dalam kompilasi parametrik.</p>
-                    <pre style="font-size:0.8rem; background:rgba(0,0,0,0.3); border:none; padding:10px;"><span style="color:var(--brand-success);">execute("WHERE user = ? AND pass = ?")</span><br><span style="color:var(--text-muted);">// Kebal manipulasi logika</span></pre>
+                    <h5 class="font-weight-bold mb-2">AKSES DITERUSKAN</h5>
+                    <p class="mb-3 opacity-80" style="font-size:0.85rem;">Input diverifikasi aman, diteruskan ke kompilasi parameter terikat.</p>
+                    <pre style="font-size:0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); padding:10px;"><span style="color:var(--brand-success);">execute("WHERE user = ? AND pass = ?")</span><br><span style="color:var(--text-muted);">// Kebal manipulasi logika kueri</span></pre>
                 </div>
                 {% endif %}
             </div>
@@ -302,34 +308,44 @@
     </div>
 </div>
 
-<!-- ── Summary table ──────────────────────────────────────────────────── -->
-<hr class="mt-2 mb-4" />
-<div class="card mb-5">
+<!-- Matriks Kebenaran -->
+<div class="card mb-4">
     <div class="card-header hdr-gray">
-        <strong>📊 Ringkasan Ekstrasi Matriks</strong>
+        <strong>Matriks Evaluasi Komparatif</strong>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table text-center m-0">
+            <table class="table mb-0 text-center">
                 <thead>
                     <tr>
-                        <th style="width:30%; text-align:left; padding-left:24px;">Parameter</th>
-                        <th style="width:35%; border-left:1px solid var(--card-border);">Target (Rentang)</th>
-                        <th style="width:35%; border-left:1px solid var(--card-border);">Target (Protected)</th>
+                        <th>Node Evaluasi</th>
+                        <th>Node Vulnerable (:5001)</th>
+                        <th>Node Protected (:5002)</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="text-align:left; padding-left:24px; color:var(--text-secondary); font-weight:600;">Metode Parse</td>
-                        <td style="border-left:1px solid var(--card-border); color:var(--brand-danger);">String Concatenation (Raw)</td>
-                        <td style="border-left:1px solid var(--card-border); color:var(--brand-success);">Prepare Statement Params</td>
+                        <td style="text-align:left; padding-left:24px; color:var(--text-secondary); font-weight:600;">Status Input</td>
+                        <td>
+                            {% if result.ml_blocked %}<span style="color:var(--brand-danger); font-weight:500;">MALICIOUS</span>{% else %}<span style="color:var(--text-muted);">NORMAL</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if result.ml_blocked %}<span style="color:var(--brand-danger); font-weight:500;">MALICIOUS</span>{% else %}<span style="color:var(--text-muted);">NORMAL</span>{% endif %}
+                        </td>
                     </tr>
                     <tr>
-                        <td style="text-align:left; padding-left:24px; color:var(--text-secondary); font-weight:600;">Verdict</td>
-                        <td style="border-left:1px solid var(--card-border); background: rgba(0,0,0,0.1);">
+                        <td style="text-align:left; padding-left:24px; color:var(--text-secondary); font-weight:600;">Action Terambil</td>
+                        <td><span style="color:var(--brand-danger); font-weight:500;">QUERY EXECUTION</span></td>
+                        <td>
+                            {% if result.ml_blocked %}<span style="color:var(--brand-danger); font-weight:500;">MITIGATION / BLOCK</span>{% else %}<span style="color:var(--brand-success); font-weight:500;">SAFE PASSWAY</span>{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="text-align:left; padding-left:24px; color:var(--text-secondary); font-weight:600;">Verdict Evaluasi</td>
+                        <td style="background: var(--bg-gray-subtle);">
                             {% if result.vuln_bypass %}<span style="color:var(--brand-danger); font-weight:bold;">EXPLOITED</span>{% else %}<span style="color:var(--text-muted);">DENIED</span>{% endif %}
                         </td>
-                        <td style="border-left:1px solid var(--card-border); background: rgba(0,0,0,0.1);">
+                        <td style="background: var(--bg-gray-subtle);">
                             {% if result.ml_blocked %}<span style="color:var(--brand-success); font-weight:bold;">MITIGATED</span>{% else %}<span style="color:var(--brand-warning); font-weight:bold;">PASSED</span>{% endif %}
                         </td>
                     </tr>
@@ -340,16 +356,15 @@
 </div>
 {% endif %}
 
-<!-- ── Quick payload presets ──────────────────────────────────────────── -->
+<!-- Quick payload presets -->
 <div class="card mb-5">
     <div class="card-header hdr-gray">
-        <strong>📦 Preset Injeksi Cepat</strong>
+        <strong>Preset Injeksi & Pengujian Cepat</strong>
     </div>
     <div class="card-body p-4">
         <div class="row">
-            <div class="col-md-6 pr-md-4" style="border-right: 1px dashed rgba(255,255,255,0.1);">
-                <div class="font-weight-bold text-uppercase mb-3" style="color:var(--brand-danger); font-size:0.8rem; letter-spacing:0.05em;">Mutasi Berbahaya ⚠️</div>
-                {# Semua payload valid SQLite — cursor.execute() single-statement #}
+            <div class="col-md-6 pr-md-4" style="border-right: 1px dashed var(--border-color);">
+                <div class="font-weight-bold text-uppercase mb-3" style="color:var(--brand-danger); font-size:0.8rem; letter-spacing:0.05em;">Payload SQL Injection</div>
                 {% for name, pl in [
                     ("Classic Auth Bypass",       "' OR '1'='1' --"),
                     ("Admin Comment Bypass",       "admin' --"),
@@ -363,12 +378,12 @@
                 <button type="button" class="payload-btn js-payload-btn"
                     data-value="{{ pl | e }}"
                     title="{{ name }}"
-                ><span style="color:var(--text-muted);font-size:0.7rem;margin-right:6px;">{{ name }}</span>{{ pl }}</button>
+                ><span style="color:var(--text-muted);font-size:0.7rem;margin-right:6px;font-family:var(--font-sans);">{{ name }}</span>{{ pl }}</button>
                 {% endfor %}
             </div>
             <div class="col-md-6 pl-md-4 mt-4 mt-md-0">
-                <div class="font-weight-bold text-uppercase mb-3" style="color:var(--brand-success); font-size:0.8rem; letter-spacing:0.05em;">Akses Sah (Normal) ✅</div>
-                {% for name, pl in [("Default Admin", "admin"), ("User Format", "jane.doe@example.com"), ("Numeric ID", "901284"), ("Empty String", "")] %}
+                <div class="font-weight-bold text-uppercase mb-3" style="color:var(--brand-success); font-size:0.8rem; letter-spacing:0.05em;">Akses Sah (Normal Input)</div>
+                {% for name, pl in [("Default Admin Username", "admin"), ("Format Email", "jane.doe@example.com"), ("ID Numerik", "901284"), ("Input Kosong", "")] %}
                 <button type="button" class="payload-btn js-payload-btn" data-value="{{ pl | e }}" title="{{ name }}">{{ pl if pl else '(kosong)' }}</button>
                 {% endfor %}
             </div>
@@ -402,9 +417,7 @@
             const blocked = bar.dataset.blocked === '1';
 
             fill.style.width = `${clampPercent(confidence)}%`;
-            fill.style.background = blocked
-                ? 'linear-gradient(90deg, var(--brand-danger), #ff7b72)'
-                : 'linear-gradient(90deg, var(--brand-success), #56d364)';
+            fill.style.background = blocked ? 'var(--brand-danger)' : 'var(--brand-success)';
         });
 
         document.querySelectorAll('.js-probability-row').forEach((row) => {
@@ -417,7 +430,7 @@
             const isSqli = row.dataset.sqliClass === '1';
 
             fill.style.width = `${clampPercent(probability)}%`;
-            fill.style.background = isSqli ? '#ff7b72' : '#56d364';
+            fill.style.background = isSqli ? 'var(--brand-danger)' : 'var(--brand-success)';
         });
     }
 
@@ -434,20 +447,20 @@
     function updateBadge(state, text, conf) {
         let badgeHtml = '';
         if(state === 'idle') {
-            badgeHtml = `<span class="badge-ml" style="background:transparent; border: 1px solid var(--text-muted); color: var(--text-muted);">${text}</span>`;
+            badgeHtml = `<span class="badge-ml" style="background:transparent; border: 1px solid var(--border-color); color: var(--text-muted);">${text}</span>`;
             liveWrap.style.display = 'none';
         } else if (state === 'sqli') {
-            badgeHtml = `<span class="badge-ml bg-danger border-danger text-white">⚠️ HTHREAT DETECTED</span>`;
+            badgeHtml = `<span class="badge-ml badge-vuln">⚠️ THREAT DETECTED</span>`;
             liveFill.style.width = `${Math.round(conf*100)}%`;
-            liveFill.style.background = 'linear-gradient(90deg, var(--brand-danger), #ff7b72)';
+            liveFill.style.background = 'var(--brand-danger)';
             liveWrap.style.display = 'block';
         } else if (state === 'legit') {
-            badgeHtml = `<span class="badge-ml bg-success border-success text-white">✅ CLEAR</span>`;
+            badgeHtml = `<span class="badge-ml badge-protected">✅ CLEAR</span>`;
             liveFill.style.width = `${Math.round(conf*100)}%`;
-            liveFill.style.background = 'linear-gradient(90deg, var(--brand-success), #56d364)';
+            liveFill.style.background = 'var(--brand-success)';
             liveWrap.style.display = 'block';
         } else {
-            badgeHtml = `<span class="badge-ml border-primary text-primary" style="background:rgba(88,166,255,0.1)">${text}</span>`;
+            badgeHtml = `<span class="badge-ml badge-ml" style="border-color: var(--brand-primary-glow); color: var(--brand-primary);">${text}</span>`;
         }
         indicatorWrap.innerHTML = badgeHtml;
     }
