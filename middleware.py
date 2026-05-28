@@ -68,8 +68,69 @@ _LEGIT_LABELS: frozenset[str] = frozenset(
     }
 )
 
+# ---------------------------------------------------------------------------
+# Preprocessing Constants (dari notebook)
+# ---------------------------------------------------------------------------
+
+STOPWORDS = {
+    "a", "an", "the", "is", "it", "in", "on", "at", "to", "for",
+    "of", "and", "with", "by", "as", "be", "was", "are", "were",
+    "this", "that", "have", "has", "had", "do", "does", "did",
+    "but", "so", "if", "then", "than", "its", "into", "from",
+    "there", "their", "they", "will", "would", "could", "should"
+}
+
+SQL_KEYWORDS = {
+    "select", "from", "where", "and", "or", "not", "is", "in",
+    "like", "union", "insert", "update", "delete", "drop", "create",
+    "table", "into", "values", "order", "by", "group", "having",
+    "join", "on", "null", "true", "false", "case", "when", "then",
+    "else", "end", "limit", "offset", "between", "exists", "all",
+    "distinct", "count", "sum", "max", "min", "avg", "sleep",
+    "benchmark", "char", "concat", "substring", "load_file",
+    "outfile", "exec", "execute", "cast", "convert", "if"
+}
+
+DROPPED_WORDS = STOPWORDS - SQL_KEYWORDS
+
+# Pre-compiled regex patterns untuk performa optimal
+REGEX_SINGLE_QUOTE = re.compile(r"'[^']*'")
+REGEX_DOUBLE_QUOTE = re.compile(r'"[^"]*"')
+REGEX_DIGITS = re.compile(r'\d+')
+REGEX_TOKENS = re.compile(r"[a-z0-9_]+|--|/\*|\*/|'|\"|\(|\)|=|<|>|;|\#|,|\*|\+|\-|%")
+
 # Regex untuk input aman - lewati pemanggilan model ML
 _SAFE_INPUT_RE = re.compile(r"^[\w\s@.\-+]{1,200}$", re.ASCII)
+
+
+# ---------------------------------------------------------------------------
+# Preprocessing Functions
+# ---------------------------------------------------------------------------
+
+def preprocess_text(text: str) -> str:
+    """
+    Fungsi preprocessing teks versi optimasi tinggi.
+    Menggunakan single lookup berbasis reduksi set logika untuk performa maksimal.
+    Sama dengan yang digunakan di notebook untuk konsistensi pipeline.
+    """
+    if not isinstance(text, str):
+        return ""
+    
+    # 1. Normalisasi case di awal
+    text = text.lower()
+
+    # 2. Eksekusi Regex terkompilasi
+    text = REGEX_SINGLE_QUOTE.sub("'str'", text)
+    text = REGEX_DOUBLE_QUOTE.sub('"str"', text)
+    text = REGEX_DIGITS.sub('0', text)
+
+    # 3. Tokenisasi cepat
+    tokens = REGEX_TOKENS.findall(text)
+
+    # 4. OPTIMASI LOOP: Mengurangi beban lookup ganda menjadi single lookup
+    filtered = [t for t in tokens if t not in DROPPED_WORDS]
+
+    return " ".join(filtered)
 
 
 # ---------------------------------------------------------------------------
@@ -217,13 +278,17 @@ class SQLiDetector:
     def predict_proba_map(self, text: str) -> Dict[str, float]:
         """
         Mengembalikan dict pemetaan label kelas ke nilai probabilitas.
+        Menggunakan preprocess_text sama seperti yang digunakan saat training.
         """
+        # Preprocess text sebelum vectorize (konsisten dengan notebook)
+        text_clean = preprocess_text(text)
+        
         try:
             if self.pipeline is not None:
-                raw_proba = self.pipeline.predict_proba([text])[0]
+                raw_proba = self.pipeline.predict_proba([text_clean])[0]
                 classes = getattr(self.pipeline, "classes_", range(len(raw_proba)))
             elif self.model is not None:
-                X = self._vectorize(text)
+                X = self._vectorize(text_clean)
                 raw_proba = self.model.predict_proba(X)[0]
                 classes = (
                     self._classes
@@ -236,9 +301,9 @@ class SQLiDetector:
 
         except AttributeError:
             if self.pipeline is not None:
-                raw_label = self.pipeline.predict([text])[0]
+                raw_label = self.pipeline.predict([text_clean])[0]
             elif self.model is not None:
-                X = self._vectorize(text)
+                X = self._vectorize(text_clean)
                 raw_label = self.model.predict(X)[0]
             else:
                 raise RuntimeError("[SQLiDetector] Model belum ter-load.")
@@ -253,6 +318,7 @@ class SQLiDetector:
         Mengklasifikasikan teks dan mengembalikan 3-tuple:
         (label, confidence, proba_map)
 
+        Menggunakan preprocess_text() konsisten dengan training pipeline.
         Ditambahkan optimalisasi cache performa tinggi untuk memangkas latensi.
         """
         # Cek Cache Terlebih Dahulu (0.00 ms Latency Hit)
@@ -283,9 +349,9 @@ class SQLiDetector:
                 self._cache[text] = result
             return result
 
-        # Prediksi ML
+        # Prediksi ML (dengan preprocessing text)
         t_ml_start = time.perf_counter()
-        proba_map = self.predict_proba_map(text)
+        proba_map = self.predict_proba_map(text)  # preprocess_text() sudah dipanggil di sini
 
         raw_best = max(proba_map, key=lambda k: proba_map[k])
         confidence = proba_map[raw_best]

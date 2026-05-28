@@ -38,7 +38,7 @@ from flask import (
 
 # Import helper functions from centralized utils module
 from utils import sql_connect, parse_statements
-from middleware import SQLiDetector
+from middleware import SQLiDetector, preprocess_text
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -201,7 +201,9 @@ def init_request_timing():
         "ml_ms": 0.0,
         "db_ms": 0.0,
         "decision_ms": 0.0,
-        "total_ms": 0.0
+        "total_ms": 0.0,
+        "username_val": request.form.get("username", ""),
+        "password_val": request.form.get("password", "")
     }
 
 @app.before_request
@@ -267,6 +269,8 @@ def ml_sqli_guard() -> None:
             t_ml = g.sqli_metrics.get("ml_ms", 0.0)
             t_dec = g.sqli_metrics.get("decision_ms", 0.0)
             t_net = g.sqli_metrics.get("network_ms", 0.0)
+            username_preprocessed = preprocess_text(g.sqli_metrics.get("username_val", ""))
+            password_preprocessed = preprocess_text(g.sqli_metrics.get("password_val", ""))
             logger.info(
                 "\n"
                 "============================================================\n"
@@ -279,9 +283,17 @@ def ml_sqli_guard() -> None:
                 " Blocking Decision Made : %.4f ms\n"
                 "------------------------------------------------------------\n"
                 " Total Backend Latency  : %.4f ms\n"
+                " Sent Input Username    : %s\n"
+                " (Debugging) Username After Preprocessing : %s\n"
+                " Sent Input Password    : %s\n"
+                " (Debugging) Password After Preprocessing : %s\n"
                 "============================================================",
                 g.client_sent_time if g.client_sent_time else "N/A",
-                t_net, t_pre, t_ml, t_dec, t_total
+                t_net, t_pre, t_ml, t_dec, t_total,
+                g.sqli_metrics.get("username_val", ""),
+                username_preprocessed,
+                g.sqli_metrics.get("password_val", ""),
+                password_preprocessed,
             )
 
             # Keep metrics in session so we can display them on 403 or redirect
@@ -315,6 +327,8 @@ def protected_login():
     if request.method == "POST":
         raw_username = request.form.get("username", "")
         raw_password = request.form.get("password", "")
+        username_preprocessed = preprocess_text(raw_username)
+        password_preprocessed = preprocess_text(raw_password)
 
         # Prediksi ML untuk tampilan edukatif (guard sudah jalan di before_request)
         try:
@@ -368,12 +382,20 @@ def protected_login():
                         " Database Query Exec    : %.4f ms\n"
                         "------------------------------------------------------------\n"
                         " Total Backend Latency  : %.4f ms\n"
+                        " Sent Input Username    : %s\n"
+                        " (Debugging) Username After Preprocessing : %s\n"
+                        " Sent Input Password    : %s\n"
+                        " (Debugging) Password After Preprocessing : %s\n"
                         "============================================================",
                         g.sqli_metrics.get("network_ms", 0.0),
                         g.sqli_metrics.get("pre_filter_ms", 0.0),
                         g.sqli_metrics.get("ml_ms", 0.0),
                         db_ms,
-                        total_ms
+                        total_ms,
+                        g.sqli_metrics.get("username_val", ""),
+                        username_preprocessed,
+                        g.sqli_metrics.get("password_val", ""),
+                        password_preprocessed,
                     )
                 if row:
                     session["user"] = raw_username
