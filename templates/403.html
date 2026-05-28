@@ -238,6 +238,70 @@
         transform: translateY(-1px);
         box-shadow: 0 4px 12px var(--brand-primary-glow);
     }
+    /* Stepper Latensi */
+    .telemetry-stepper {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+    }
+    .telemetry-stepper::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 10px;
+        bottom: 10px;
+        width: 2px;
+        background: var(--border-color);
+        z-index: 1;
+    }
+    .telemetry-step {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+        z-index: 2;
+        background: var(--bg-card);
+        padding: 8px 0;
+    }
+    .ts-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--bg-danger-subtle);
+        border: 1px solid var(--brand-danger-glow);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        box-shadow: var(--shadow-sm);
+    }
+    .ts-info {
+        flex: 1;
+        text-align: left;
+    }
+    .ts-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    .ts-desc {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+    .ts-time {
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--brand-danger);
+        background: var(--bg-danger-subtle);
+        border: 1px solid var(--brand-danger-glow);
+        padding: 4px 10px;
+        border-radius: 6px;
+        flex-shrink: 0;
+    }
 </style>
 {% endblock %}
 
@@ -263,6 +327,59 @@
     </p>
 
     <!-- System Diagnostic Report -->
+    {% if metrics %}
+    <div class="card mb-4 mt-4" style="border-color: var(--brand-danger-glow); background: var(--bg-card); text-align: left;">
+        <div class="card-header hdr-red d-flex justify-content-between align-items-center">
+            <strong>⏱️ Analisis Latensi Deteksi Keamanan (Block Telemetry)</strong>
+            <span class="badge badge-danger" style="font-family: var(--font-mono); font-size: 0.82rem; background: var(--bg-danger-subtle); color: var(--brand-danger); border: 1px solid var(--brand-danger-glow);">
+                Total: {{ metrics.total_ms | round(3) }} ms
+            </span>
+        </div>
+        <div class="card-body p-4">
+            <div class="telemetry-stepper">
+                {% if metrics.network_ms > 0 %}
+                <div class="telemetry-step">
+                    <div class="ts-icon">🌐</div>
+                    <div class="ts-info">
+                        <div class="ts-title">Transmisi Jaringan (Network Latency)</div>
+                        <div class="ts-desc">Waktu transmisi payload dari browser ke server</div>
+                    </div>
+                    <div class="ts-time">{{ metrics.network_ms | round(3) }} ms</div>
+                </div>
+                {% endif %}
+                
+                <div class="telemetry-step">
+                    <div class="ts-icon">🧹</div>
+                    <div class="ts-info">
+                        <div class="ts-title">Pembersihan & Pre-filter (Query Cleansing)</div>
+                        <div class="ts-desc">Evaluasi karakter SQL berbahaya menggunakan regex pelindung</div>
+                    </div>
+                    <div class="ts-time">{{ metrics.pre_filter_ms | round(3) }} ms</div>
+                </div>
+
+                {% if metrics.ml_ms > 0 %}
+                <div class="telemetry-step">
+                    <div class="ts-icon">🧠</div>
+                    <div class="ts-info">
+                        <div class="ts-title">Klasifikasi Intelijen (ML Model Inference)</div>
+                        <div class="ts-desc">Vektorisasi teks dan prediksi probabilitas dengan Naive Bayes</div>
+                    </div>
+                    <div class="ts-time">{{ metrics.ml_ms | round(3) }} ms</div>
+                </div>
+                {% endif %}
+
+                <div class="telemetry-step">
+                    <div class="ts-icon">🛡️</div>
+                    <div class="ts-info">
+                        <div class="ts-title">Pengambilan Keputusan (Block Verdict)</div>
+                        <div class="ts-desc">Sistem memblokir koneksi otomatis dan mengembalikan HTTP 403</div>
+                    </div>
+                    <div class="ts-time">{{ metrics.decision_ms | round(3) }} ms</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     <div class="report-card">
         <div class="report-header">
             <span class="report-header-title">

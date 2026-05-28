@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Rentan - SQLi ML Lab{% endblock %}
+
+{% block container_style %}max-width: 900px;{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Component: Welcome Hero - Vulnerable / Bypassed theme */
+    .welcome-hero {
+        background: var(--bg-danger-subtle);
+        border: 1px solid var(--brand-danger-glow);
+        border-radius: 8px;
+        padding: 28px 24px;
+        margin-bottom: 28px;
+        position: relative;
+        overflow: hidden;
+    }
+    .welcome-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--brand-danger);
+    }
+    .welcome-hero .avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: var(--brand-danger);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    .welcome-hero .welcome-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--brand-danger);
+    }
+    .welcome-hero .welcome-sub {
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        margin-top: 6px;
+    }
+    .welcome-hero .bypass-badge {
+        display: inline-block;
+        background: var(--brand-danger-glow);
+        color: var(--hdr-red-text);
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid var(--brand-danger);
+        text-transform: uppercase;
+        margin-top: 8px;
+        letter-spacing: 0.05em;
+    }
+
+    /* Component: Stat Tiles */
+    .stat-tile {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px 16px;
+        text-align: center;
+        transition: all var(--transition-smooth);
+        box-shadow: var(--shadow-sm);
+        height: 100%;
+    }
+    .stat-tile:hover {
+        border-color: var(--brand-danger);
+        box-shadow: var(--shadow-md);
+    }
+    .stat-tile .stat-icon { font-size: 1.6rem; line-height: 1; margin-bottom: 10px; }
+    .stat-tile .stat-val  { font-size: 1.2rem; font-weight: 700; }
+    .stat-tile .stat-lbl  { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 4px; }
+
+    /* Component: Nav Card Links */
+    .nav-card-link {
+        display: flex;
+        align-items: center;
+        padding: 16px;
+        background: var(--bg-app);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        margin-bottom: 12px;
+        color: inherit;
+        text-decoration: none;
+        transition: all var(--transition-smooth);
+    }
+    .nav-card-link:hover {
+        text-decoration: none;
+        border-color: var(--brand-danger);
+        background: var(--bg-danger-subtle);
+        transform: translateY(-2px);
+    }
+    .nav-card-link:last-child { margin-bottom: 0; }
+    .nav-card-link .nc-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 6px;
+        background: var(--bg-card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        flex-shrink: 0;
+        font-size: 1.2rem;
+        border: 1px solid var(--border-color);
+    }
+    .nav-card-link .nc-title { font-weight: 600; font-size: 0.95rem; color: var(--text-primary); }
+    .nav-card-link .nc-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Component: Session Row */
+    .session-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.85rem;
+    }
+    .session-row:last-child { border-bottom: none; }
+    .session-row .session-key { color: var(--text-secondary); }
+    .session-row .session-val { font-weight: 600; color: var(--text-primary); font-family: var(--font-mono); }
+
+    /* Custom inline SVG styles */
+    .inline-svg-icon svg {
+        width: 1.5em;
+        height: 1.5em;
+        stroke: currentColor;
+        fill: none;
+    }
+    .btn-logout {
+        background: var(--bg-danger-subtle);
+        color: var(--brand-danger);
+        border: 1px solid var(--brand-danger-glow);
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 8px 18px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all var(--transition-smooth);
+    }
+    .btn-logout:hover {
+        background: var(--brand-danger);
+        color: white;
+        border-color: var(--brand-danger);
+        box-shadow: 0 4px 12px var(--brand-danger-glow);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Welcome Hero -->
+<div class="welcome-hero d-flex align-items-start align-items-sm-center flex-column flex-sm-row" style="gap: 20px;">
+    <div class="avatar">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 26px; height: 26px;">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+        </svg>
+    </div>
+    <div>
+        <div class="welcome-title">Authentication Bypassed Successfully!</div>
+        <div class="welcome-sub">
+            Anda berhasil masuk sebagai entitas pengguna: <strong>{{ username }}</strong> melalui eksploitasi kueri SQL.
+        </div>
+        <span class="bypass-badge">SQLi Vulnerable Mode</span>
+    </div>
+</div>
+
+<!-- Stat Tiles -->
+<div class="row mb-4">
+    <div class="col p-0 pr-2">
+        <div class="stat-tile">
+            <div class="stat-icon inline-svg-icon" style="color: var(--brand-danger);">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="4.5" y1="4.5" x2="19.5" y2="19.5"></line></svg>
+            </div>
+            <div class="stat-val" style="color: var(--brand-danger);">BYPASSED</div>
+            <div class="stat-lbl">ML WAF Shield</div>
+        </div>
+    </div>
+    <div class="col p-0 px-1">
+        <div class="stat-tile">
+            <div class="stat-icon inline-svg-icon" style="color: var(--brand-danger);">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+            </div>
+            <div class="stat-val" style="color: var(--brand-danger);">RENTAN</div>
+            <div class="stat-lbl">Kueri Database</div>
+        </div>
+    </div>
+    <div class="col p-0 pl-2">
+        <div class="stat-tile">
+            <div class="stat-icon inline-svg-icon" style="color: var(--brand-warning);">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+            </div>
+            <div class="stat-val" style="color: var(--brand-warning);">OPEN PORT</div>
+            <div class="stat-lbl">Firewall Filter</div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigasi Cepat -->
+<div class="card mb-5">
+    <div class="card-header hdr-red">
+        <strong>Navigasi Modul Lab</strong>
+    </div>
+    <div class="card-body p-4">
+        <a class="nav-card-link" href="http://localhost:5002/compare">
+            <span class="nc-icon inline-svg-icon" style="color: var(--brand-primary);">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 18h8" />
+                    <path d="M3 22h18" />
+                    <path d="M14 22a7 7 0 1 0-14 0" />
+                    <path d="M9 14h2" />
+                    <path d="M9 12a3 3 0 1 0-6 0" />
+                    <path d="M12 6l3.5 3.5" />
+                    <path d="M9 3l6 6" />
+                    <path d="M14 2a2 2 0 0 1 2 2v6" />
+                    <path d="M18 10a2 2 0 0 1-2 2h-4" />
+                </svg>
+            </span>
+            <div>
+                <div class="nc-title">Visual Compare Lab <small>&neararr;</small></div>
+                <div class="nc-sub">
+                    Bandingkan respon aplikasi rentan (Port 5001) vs aman (Port 5002) secara berdampingan. Evaluasi kinerja deteksi model secara interaktif.
+                </div>
+            </div>
+        </a>
+
+        <a class="nav-card-link" href="http://localhost:5002/protected-login">
+            <span class="nc-icon inline-svg-icon" style="color: var(--brand-success);">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </span>
+            <div>
+                <div class="nc-title">Uji Login Terlindungi ML <small>&neararr;</small></div>
+                <div class="nc-sub">
+                    Pindah ke aplikasi terlindungi (Port 5002) dengan model Naive Bayes yang melarang keras input SQLi berbahaya.
+                </div>
+            </div>
+        </a>
+
+        <a class="nav-card-link" href="{{ url_for('login') }}">
+            <span class="nc-icon inline-svg-icon" style="color: var(--brand-danger);">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </span>
+            <div>
+                <div class="nc-title">Kembali ke Halaman Login Rentan</div>
+                <div class="nc-sub">
+                    Kembali ke menu login utama untuk menguji variasi payload injeksi SQL (Union-based, Error-based, Boolean-blind).
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Info Grid / Session Info -->
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header hdr-red">
+                <strong>Informasi Sesi Aktif</strong>
+            </div>
+            <div class="card-body">
+                <div class="session-row">
+                    <span class="session-key">Otentikasi Klien</span>
+                    <span class="session-val" style="color: var(--brand-danger);">String Interpolation</span>
+                </div>
+                <div class="session-row">
+                    <span class="session-key">WAF ML Guard</span>
+                    <span class="session-val" style="color: var(--brand-danger);">DISABLED</span>
+                </div>
+                <div class="session-row">
+                    <span class="session-key">SQL WAF Shield</span>
+                    <span class="session-val" style="color: var(--brand-warning);">Bypassed (0% Filtered)</span>
+                </div>
+                <div class="session-row">
+                    <span class="session-key">Port Protokol</span>
+                    <span class="session-val">5001 (Rentan)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header hdr-yellow">
+                <strong>Analisis Pembelajaran Keamanan</strong>
+            </div>
+            <div class="card-body" style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.7;">
+                <ol class="pl-3 mb-0">
+                    <li class="mb-2">
+                        <strong style="color: var(--text-primary);">Mengapa bypass ini bisa berhasil?</strong><br/>
+                        Input username Anda langsung disatukan ke kueri SQL menggunakan f-string Python. Karakter `'` memecah sintaks kueri dasar.
+                    </li>
+                    <li class="mb-2">
+                        <strong style="color: var(--text-primary);">Dampak Tautologi</strong><br/>
+                        Payload tautologi seperti `' OR '1'='1` menghasilkan kondisi `TRUE` untuk seluruh kolom, menginstruksikan SQLite me-return data baris pertama tanpa password valid.
+                    </li>
+                    <li>
+                        <strong style="color: var(--text-primary);">Mitigasi Utama</strong><br/>
+                        Gunakan parameterized kueri (placeholder `?` dengan binding argumen) di database SQLite agar input tidak pernah dieksekusi sebagai instruksi kode SQL.
+                    </li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logout -->
+<hr class="mt-2 mb-4" />
+<div class="d-flex align-items-center justify-content-between flex-wrap" style="gap: 16px; margin-bottom: 24px;">
+    <div style="font-size: 0.85rem; color: var(--text-muted);">
+        Status masuk: <strong style="color: var(--text-primary);">{{ username }}</strong>, terkoneksi pada port rentan utama.
+    </div>
+    <form method="POST" action="{{ url_for('logout') }}" style="margin: 0;">
+        <button type="submit" class="btn-logout">Akhiri Sesi Lab</button>
+    </form>
+</div>
+
+{% endblock %}

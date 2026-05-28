@@ -32,6 +32,8 @@ from flask import (
 )
 import json
 from datetime import datetime
+import time
+from flask import g
 
 from middleware import SQLiDetector
 
@@ -214,6 +216,34 @@ def classify_verdict(
 
 # ── Middleware: before_request SQLi guard ─────────────────────────────────────
 @app.before_request
+def init_request_timing():
+    g.request_start_time = time.perf_counter()
+    g.request_start_epoch = time.time()
+    
+    # Client send time (in ms since epoch)
+    client_time_ms = request.form.get("_client_sent_time") or request.headers.get("X-Client-Sent-Time")
+    g.client_sent_time = None
+    g.network_ms = 0.0
+    if client_time_ms:
+        try:
+            g.client_sent_time = float(client_time_ms) / 1000.0 # convert ms to seconds
+            # Calculate network latency: request arrival epoch minus client send epoch
+            network_diff = g.request_start_epoch - g.client_sent_time
+            if network_diff > 0:
+                g.network_ms = network_diff * 1000.0
+        except Exception:
+            pass
+            
+    g.sqli_metrics = {
+        "network_ms": g.network_ms,
+        "pre_filter_ms": 0.0,
+        "ml_ms": 0.0,
+        "db_ms": 0.0,
+        "decision_ms": 0.0,
+        "total_ms": 0.0
+    }
+
+@app.before_request
 def ml_sqli_guard() -> None:
     """
     Periksa setiap field form pada endpoint protected_login.
@@ -253,6 +283,13 @@ def ml_sqli_guard() -> None:
             except Exception:
                 proba_serial = str(proba_map)
 
+            # Calculate blocking decision latency
+            if hasattr(g, 'request_start_time') and hasattr(g, 'sqli_metrics'):
+                t_now = time.perf_counter()
+                decision_ms = (t_now - g.request_start_time) * 1000.0
+                g.sqli_metrics["decision_ms"] = decision_ms
+                g.sqli_metrics["total_ms"] = decision_ms
+
             logger.warning(
                 "[FORNSIC] time=%s ip=%s field=%s confidence=%.6f payload=%r proba=%s",
                 timestamp,
@@ -262,6 +299,32 @@ def ml_sqli_guard() -> None:
                 value,
                 proba_serial,
             )
+
+            # Log timing breakdown to console
+            t_total = g.sqli_metrics.get("total_ms", 0.0)
+            t_pre = g.sqli_metrics.get("pre_filter_ms", 0.0)
+            t_ml = g.sqli_metrics.get("ml_ms", 0.0)
+            t_dec = g.sqli_metrics.get("decision_ms", 0.0)
+            t_net = g.sqli_metrics.get("network_ms", 0.0)
+            logger.info(
+                "\n"
+                "============================================================\n"
+                " [TELEMETRY] BLOCKED SQL INJECTION INTRUSION\n"
+                "------------------------------------------------------------\n"
+                " Client Send Epoch      : %s\n"
+                " HTTP Request Arrival   : [OK] (Net Latency: %.4f ms)\n"
+                " Query Pre-Filter Check : %.4f ms\n"
+                " ML Model Prediction    : %.4f ms\n"
+                " Blocking Decision Made : %.4f ms\n"
+                "------------------------------------------------------------\n"
+                " Total Backend Latency  : %.4f ms\n"
+                "============================================================",
+                g.client_sent_time if g.client_sent_time else "N/A",
+                t_net, t_pre, t_ml, t_dec, t_total
+            )
+
+            # Keep metrics in session so we can display them on 403 or redirect
+            session["sqli_metrics"] = g.sqli_metrics
 
             # Kembalikan HTTP 403 Forbidden sebagai aksi blok
             abort(403)
@@ -294,7 +357,14 @@ def protected_login():
 
         # Prediksi ML untuk tampilan edukatif (guard sudah jalan di before_request)
         try:
+            t_ml_start = time.perf_counter()
             label, confidence, proba_map = detector.predict(raw_username)
+            t_ml_end = time.perf_counter()
+            ml_ms = (t_ml_end - t_ml_start) * 1000.0
+            
+            if hasattr(g, 'sqli_metrics'):
+                g.sqli_metrics['ml_ms'] = ml_ms
+                g.sqli_metrics['decision_ms'] = (t_ml_end - g.request_start_time) * 1000.0
             ml_result = {
                 "label": label,
                 "confidence": round(confidence, 4),
@@ -310,11 +380,40 @@ def protected_login():
         if conn:
             cursor = conn.cursor()
             try:
+                t_db_start = time.perf_counter()
                 cursor.execute(
                     "SELECT id FROM users WHERE username = ? AND password = ?",
                     (raw_username, raw_password),
                 )
                 row = cursor.fetchone()
+                t_db_end = time.perf_counter()
+                db_ms = (t_db_end - t_db_start) * 1000.0
+                
+                if hasattr(g, 'sqli_metrics'):
+                    g.sqli_metrics['db_ms'] = db_ms
+                    t_now = time.perf_counter()
+                    total_ms = (t_now - g.request_start_time) * 1000.0
+                    g.sqli_metrics['total_ms'] = total_ms
+                    
+                    # Log timing breakdown to console
+                    logger.info(
+                        "\n"
+                        "============================================================\n"
+                        " [TELEMETRY] ALLOWED REQUEST (ZERO-TRUST PASSED)\n"
+                        "------------------------------------------------------------\n"
+                        " HTTP Request Arrival   : [OK] (Net Latency: %.4f ms)\n"
+                        " Query Pre-Filter Check : %.4f ms\n"
+                        " ML Model Prediction    : %.4f ms\n"
+                        " Database Query Exec    : %.4f ms\n"
+                        "------------------------------------------------------------\n"
+                        " Total Backend Latency  : %.4f ms\n"
+                        "============================================================",
+                        g.sqli_metrics.get("network_ms", 0.0),
+                        g.sqli_metrics.get("pre_filter_ms", 0.0),
+                        g.sqli_metrics.get("ml_ms", 0.0),
+                        db_ms,
+                        total_ms
+                    )
                 if row:
                     session["user"] = raw_username
                     login_ok = True
@@ -413,6 +512,11 @@ def compare():
             "vuln_bypass": vuln_bypass,
             # Verdict
             "verdict": verdict,
+            # Telemetry comparison
+            "ml_latency_ms": round(ml_total_ms, 3),
+            "sql_latency_ms": round(sql_total_ms, 3),
+            "pre_filter_ms": round(g.sqli_metrics.get("pre_filter_ms", 0.0), 3) if hasattr(g, 'sqli_metrics') else 0.0,
+            "ml_model_ms": round(g.sqli_metrics.get("ml_ms", 0.0), 3) if hasattr(g, 'sqli_metrics') else 0.0,
         }
 
     return render_template("compare.html", result=result)
@@ -470,7 +574,14 @@ def logout():
 @app.errorhandler(403)
 def forbidden_error(error):
     """Custom error handler for HTTP 403 Forbidden."""
-    return render_template('403.html'), 403
+    metrics = session.pop("sqli_metrics", None)
+    if not metrics and hasattr(g, 'sqli_metrics'):
+        metrics = g.sqli_metrics
+        if hasattr(g, 'request_start_time'):
+            decision_ms = (time.perf_counter() - g.request_start_time) * 1000.0
+            metrics['decision_ms'] = decision_ms
+            metrics['total_ms'] = decision_ms
+    return render_template('403.html', metrics=metrics), 403
 
 
 if __name__ == "__main__":

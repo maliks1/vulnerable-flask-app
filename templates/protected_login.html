@@ -64,6 +64,70 @@
         color: var(--brand-primary);
         margin-bottom: 24px;
     }
+    /* Stepper Latensi */
+    .telemetry-stepper {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+    }
+    .telemetry-stepper::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 10px;
+        bottom: 10px;
+        width: 2px;
+        background: var(--border-color);
+        z-index: 1;
+    }
+    .telemetry-step {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+        z-index: 2;
+        background: var(--bg-card);
+        padding: 8px 0;
+    }
+    .ts-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--bg-primary-subtle);
+        border: 1px solid var(--brand-primary-glow);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        box-shadow: var(--shadow-sm);
+    }
+    .ts-info {
+        flex: 1;
+        text-align: left;
+    }
+    .ts-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    .ts-desc {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+    .ts-time {
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--brand-success);
+        background: var(--bg-success-subtle);
+        border: 1px solid var(--brand-success-glow);
+        padding: 4px 10px;
+        border-radius: 6px;
+        flex-shrink: 0;
+    }
 </style>
 {% endblock %}
 
@@ -110,6 +174,63 @@
             &nbsp;|&nbsp; Target Parameter: <code>{{ ml_result.field }}</code>
         </div>
     </div>
+
+    <!-- Stepper Diagnostik Latensi -->
+    {% if g.sqli_metrics and g.sqli_metrics.total_ms > 0 %}
+    <div class="card mb-4" style="border-color: var(--brand-success-glow); background: var(--bg-card);">
+        <div class="card-header hdr-green d-flex justify-content-between align-items-center">
+            <strong>⏱️ Diagnostik Latensi Sistem (Zero-Trust Telemetry)</strong>
+            <span class="badge badge-success" style="font-family: var(--font-mono); font-size: 0.82rem; background: var(--bg-success-subtle); color: var(--brand-success); border: 1px solid var(--brand-success-glow); padding: 2px 8px;">
+                Total: {{ g.sqli_metrics.total_ms | round(3) }} ms
+            </span>
+        </div>
+        <div class="card-body p-4">
+            <div class="telemetry-stepper">
+                {% if g.sqli_metrics.network_ms > 0 %}
+                <div class="telemetry-step">
+                    <div class="ts-icon">🌐</div>
+                    <div class="ts-info">
+                        <div class="ts-title">Transmisi Jaringan (Network Latency)</div>
+                        <div class="ts-desc">Waktu transmisi payload dari browser ke server</div>
+                    </div>
+                    <div class="ts-time">{{ g.sqli_metrics.network_ms | round(3) }} ms</div>
+                </div>
+                {% endif %}
+                
+                <div class="telemetry-step">
+                    <div class="ts-icon">🧹</div>
+                    <div class="ts-info">
+                        <div class="ts-title">Pembersihan & Pre-filter (Query Cleansing)</div>
+                        <div class="ts-desc">Evaluasi karakter SQL berbahaya menggunakan regex pelindung</div>
+                    </div>
+                    <div class="ts-time">{{ g.sqli_metrics.pre_filter_ms | round(3) }} ms</div>
+                </div>
+
+                {% if g.sqli_metrics.ml_ms > 0 %}
+                <div class="telemetry-step">
+                    <div class="ts-icon">🧠</div>
+                    <div class="ts-info">
+                        <div class="ts-title">Klasifikasi Intelijen (ML Model Inference)</div>
+                        <div class="ts-desc">Vektorisasi teks dan prediksi probabilitas dengan Naive Bayes</div>
+                    </div>
+                    <div class="ts-time">{{ g.sqli_metrics.ml_ms | round(3) }} ms</div>
+                </div>
+                {% endif %}
+
+                {% if g.sqli_metrics.db_ms > 0 %}
+                <div class="telemetry-step">
+                    <div class="ts-icon">🗄️</div>
+                    <div class="ts-info">
+                        <div class="ts-title">Kueri Parameter Aman (Database Query)</div>
+                        <div class="ts-desc">Eksekusi kueri parameter terkompilasi ke basis data SQLite</div>
+                    </div>
+                    <div class="ts-time">{{ g.sqli_metrics.db_ms | round(3) }} ms</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 
     <!-- Probabilitas detail -->
@@ -164,6 +285,7 @@
     </div>
     <div class="card-body p-4">
         <form method="POST" autocomplete="off" id="loginForm">
+            <input type="hidden" name="_client_sent_time" id="client_sent_time" />
             <div class="form-group mb-4">
                 <label for="username">
                     Username
@@ -268,6 +390,10 @@
         }
 
         indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot" style="background: var(--brand-primary);"></span>Mengevaluasi Input...</span>';
+
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            document.getElementById('client_sent_time').value = Date.now();
+        });
 
         _debounceTimer = setTimeout(function () {
             fetch('/api/predict', {

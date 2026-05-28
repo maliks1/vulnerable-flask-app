@@ -43,7 +43,8 @@ except ImportError:
     _joblib = None  # type: ignore[assignment]
     _HAS_JOBLIB = False
 
-from flask import redirect, request, session, url_for
+import time
+from flask import redirect, request, session, url_for, g
 
 logger = logging.getLogger(__name__)
 
@@ -311,21 +312,31 @@ class SQLiDetector:
             (label, confidence, proba_map)
 
         label      : 'sqli' | 'legitimate'
-        confidence : float in [0, 1] — probability of the predicted class
-        proba_map  : full dict of raw_label → probability
+        confidence : float in [0, 1] - probability of the predicted class
+        proba_map  : full dict of raw_label -> probability
         """
+        # Record start of pre-filter / sanitization
+        t_pre_start = time.perf_counter()
+
         if not text or not text.strip():
+            t_pre_end = time.perf_counter()
+            self._record_metric('pre_filter_ms', (t_pre_end - t_pre_start) * 1000.0)
+            self._record_metric('ml_ms', 0.0)
             return "legitimate", 1.0, {"legitimate": 1.0}
 
-        # ── Pre-filter: lewati ML untuk input yang jelas-jelas aman ─────────
-        # Input seperti "admin", "alice", "user@mail.com" tidak mengandung
-        # karakter SQL apapun → kembalikan langsung sebagai legitimate.
-        # Karakter pemicu SQLi ( ' " ; -- ( ) UNION SELECT dll. ) akan
-        # menyebabkan regex TIDAK cocok → tetap diperiksa ML.
-        if self.use_prefilter and _SAFE_INPUT_RE.match(text):
+        # pre-filter: lewati ML untuk input yang jelas-jelas aman
+        is_safe = self.use_prefilter and _SAFE_INPUT_RE.match(text)
+        t_pre_end = time.perf_counter()
+        pre_filter_ms = (t_pre_end - t_pre_start) * 1000.0
+        self._record_metric('pre_filter_ms', pre_filter_ms)
+
+        if is_safe:
             logger.debug("[SQLiDetector] Pre-filter pass (no SQL metachar): %r", text)
+            self._record_metric('ml_ms', 0.0)
             return "legitimate", 0.95, {"0": 0.95, "1": 0.05}
 
+        # ML Prediction Phase
+        t_ml_start = time.perf_counter()
         proba_map = self.predict_proba_map(text)
 
         # Find the raw label with the highest probability
@@ -335,12 +346,24 @@ class SQLiDetector:
 
         # Apply threshold: if the SQLi-class probability is below threshold,
         # treat as legitimate even if it is the argmax.
-        # Threshold default 0.85 mengurangi false positive pada input pendek
-        # seperti username "admin" yang bisa terklasifikasi sbg SQLi.
         if label == "sqli" and confidence < self.threshold:
             label = "legitimate"
 
+        t_ml_end = time.perf_counter()
+        ml_ms = (t_ml_end - t_ml_start) * 1000.0
+        self._record_metric('ml_ms', ml_ms)
+
         return label, confidence, proba_map
+
+    def _record_metric(self, name: str, value: float) -> None:
+        """Helper to record metrics into Flask global g if available."""
+        try:
+            if g:
+                if not hasattr(g, 'sqli_metrics'):
+                    g.sqli_metrics = {}
+                g.sqli_metrics[name] = value
+        except Exception:
+            pass
 
     def is_sqli(self, text: str) -> bool:
         """Convenience wrapper — returns True when SQLi is detected."""

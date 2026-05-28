@@ -81,10 +81,15 @@ def home():
     if 'user' not in session:
         flash('Silakan login terlebih dahulu.', 'warning')
         return redirect(url_for('login'))
-    return (
-        f"<h2>Welcome, {session['user']}!</h2>"
-        f"<a href='{url_for('login')}'>Logout</a>"
-    )
+    username = session['user']
+    return render_template('vulnerable_home.html', username=username)
+
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    flash('Anda telah logout.', 'info')
+    return redirect(url_for('login'))
 
 
 @app.route('/', methods=['GET', 'POST'])

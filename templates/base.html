@@ -107,12 +107,7 @@
             </li>
             {% endif %} {% if 'user' in session %}
             <li>
-              <!-- Standard logout post or simple click depending on app -->
-              <form
-                action="{{ url_for('logout') if is_protected else url_for('login') }}"
-                method="{% if is_protected %}POST{% else %}GET{% endif %}"
-                style="display: inline; margin: 0"
-              >
+              <form action="{{ url_for('logout') }}" method="POST" style="display: inline; margin: 0">
                 <button
                   type="submit"
                   class="navbar-nav-link"
