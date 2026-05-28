@@ -327,7 +327,7 @@
     </p>
 
     <!-- System Diagnostic Report -->
-    {% if metrics %}
+    {% if IS_DEBUG == '1' and metrics %}
     <div class="card mb-4 mt-4" style="border-color: var(--brand-danger-glow); background: var(--bg-card); text-align: left;">
         <div class="card-header hdr-red d-flex justify-content-between align-items-center">
             <strong>⏱️ Analisis Latensi Deteksi Keamanan (Block Telemetry)</strong>
@@ -411,6 +411,7 @@
         </div>
     </div>
     {% endif %}
+    {% if IS_DEBUG == '1' %}
     <div class="report-card">
         <div class="report-header">
             <span class="report-header-title">
@@ -451,6 +452,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Action Navigation Buttons -->
     <div class="action-row">

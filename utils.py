@@ -2,6 +2,8 @@
 import sqlite3
 import logging
 
+from config import IS_DEBUG
+
 logger = logging.getLogger("utils")
 
 DB_PATH = "users.db"
@@ -13,8 +15,9 @@ def sql_connect(db_path: str = DB_PATH) -> sqlite3.Connection | None:
     try:
         return sqlite3.connect(db_path)
     except sqlite3.Error as err:
-        logger.error("DB connection error: %s", err)
-        print(f"[DB ERROR] {err}")
+        if IS_DEBUG == "1":
+            logger.error("DB connection error: %s", err)
+            print(f"[DB ERROR] {err}")
         return None
 
 def parse_statements(raw_sql: str) -> list[str]:

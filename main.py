@@ -3,6 +3,7 @@ import sqlite3
 import subprocess
 import sys
 import os
+from config import IS_DEBUG
 
 # Import helper functions from centralized utils module
 from utils import sql_connect, parse_statements
@@ -81,7 +82,8 @@ def login():
         else:
             cursor = conn.cursor()
             try:
-                print(f"[SQLI EXEC] {login_query}")
+                if IS_DEBUG == "1":
+                    print(f"[SQLI EXEC] {login_query}")
                 cursor.execute(login_query)
                 query_columns = [d[0] for d in (cursor.description or [])]
                 first_row = cursor.fetchone()
@@ -108,7 +110,8 @@ def login():
             except sqlite3.Error as exc:
                 auth_status = 'error'
                 sql_error_message = str(exc)
-                print(f"[SQL ERROR] {exc}")
+                if IS_DEBUG == "1":
+                    print(f"[SQL ERROR] {exc}")
 
             finally:
                 cursor.close()
@@ -137,12 +140,13 @@ if __name__ == '__main__':
     protected_proc = subprocess.Popen(
         [sys.executable, protected_script],
     )
-    print(f"[INFO] app_protected.py berjalan (PID {protected_proc.pid}) -> http://localhost:5002")
+    if IS_DEBUG == "1":
+        print(f"[INFO] app_protected.py berjalan (PID {protected_proc.pid}) -> http://localhost:5002")
 
     try:
-        # debug=True enables full Flask tracebacks in browser (extra info leakage)
-        app.run(debug=True, host='0.0.0.0', port=5001, use_reloader=False)
+        app.run(debug=(IS_DEBUG == "1"), host='0.0.0.0', port=5001, use_reloader=False)
     finally:
         # Ensure the subprocess dies when main.py stops
         protected_proc.terminate()
-        print("[INFO] app_protected.py dihentikan.")
+        if IS_DEBUG == "1":
+            print("[INFO] app_protected.py dihentikan.")

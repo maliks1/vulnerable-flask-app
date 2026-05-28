@@ -246,6 +246,7 @@
             {% endfor %}
         {% endif %}
 
+        {% if IS_DEBUG == '1' %}
         <!-- Vulnerable Telemetry -->
         <div class="card mb-4" style="background: var(--bg-danger-subtle); border-color: var(--brand-danger-glow);">
             <div class="card-header hdr-red">
@@ -263,6 +264,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         {% if result.vuln_bypass %}
         <div class="status-panel status-bypass text-center mb-4">
@@ -329,6 +331,7 @@
             </div>
         </div>
 
+        {% if IS_DEBUG == '1' %}
         <!-- Protected Telemetry -->
         <div class="card mb-4" style="background: var(--bg-success-subtle); border-color: var(--brand-success-glow);">
             <div class="card-header hdr-green">
@@ -352,6 +355,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <div class="card mb-4 mt-2">
             <div class="card-header hdr-purple"><strong>Intervensi ML Guard</strong></div>

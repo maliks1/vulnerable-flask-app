@@ -1,3 +1,9 @@
+from config import IS_DEBUG
+
+if IS_DEBUG != "1":
+    def print(*args, **kwargs):
+        pass
+
 import sqlite3
 
 DB_PATH = 'users.db'

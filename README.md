@@ -195,6 +195,12 @@ python create_db.py
 - Jangan deploy versi rentan ke lingkungan production.
 - Uji coba SQLi hanya boleh dilakukan di lingkungan lab yang Anda kendalikan.
 
+## Mode Debug
+
+- Set `IS_DEBUG=1` untuk menyalakan semua log, telemetry, dan panel diagnostik.
+- Set `IS_DEBUG=0` untuk mode normal yang lebih bersih.
+- Default nilai tetap `1` agar perilaku lab tetap informatif saat development.
+
 ## Lisensi
 
 Belum ditentukan. Tambahkan file lisensi jika project akan dipublikasikan secara resmi.

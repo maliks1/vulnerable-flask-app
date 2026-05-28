@@ -26,6 +26,7 @@ except ImportError:
     _HAS_JOBLIB = False
 
 from flask import redirect, request, session, url_for, g
+from config import IS_DEBUG
 
 logger = logging.getLogger(__name__)
 
@@ -178,22 +179,26 @@ class SQLiDetector:
         if _HAS_JOBLIB and _joblib is not None:
             try:
                 obj = _joblib.load(path)
-                logger.info("[SQLiDetector] Model berhasil dimuat menggunakan joblib dari '%s'", path)
+                if IS_DEBUG == "1":
+                    logger.info("[SQLiDetector] Model berhasil dimuat menggunakan joblib dari '%s'", path)
             except Exception as exc:
                 last_error = exc
-                logger.warning(
-                    "[SQLiDetector] joblib.load gagal (%s), mencoba fallback ke pickle...", exc
-                )
+                if IS_DEBUG == "1":
+                    logger.warning(
+                        "[SQLiDetector] joblib.load gagal (%s), mencoba fallback ke pickle...", exc
+                    )
 
         # Fallback ke pickle
         if obj is None:
             try:
                 with open(path, "rb") as fh:
                     obj = pickle.load(fh)
-                logger.info("[SQLiDetector] Model berhasil dimuat menggunakan pickle dari '%s'", path)
+                if IS_DEBUG == "1":
+                    logger.info("[SQLiDetector] Model berhasil dimuat menggunakan pickle dari '%s'", path)
             except Exception as exc:
                 last_error = exc
-                logger.error("[SQLiDetector] pickle.load juga gagal: %s", exc)
+                if IS_DEBUG == "1":
+                    logger.error("[SQLiDetector] pickle.load juga gagal: %s", exc)
 
         if obj is None:
             raise RuntimeError(
@@ -205,14 +210,16 @@ class SQLiDetector:
         if hasattr(obj, "named_steps"):
             self.pipeline = obj
             self._classes = getattr(obj, "classes_", None)
-            logger.info("[SQLiDetector] Terdeteksi sklearn Pipeline dari '%s'", path)
+            if IS_DEBUG == "1":
+                logger.info("[SQLiDetector] Terdeteksi sklearn Pipeline dari '%s'", path)
 
         elif isinstance(obj, (tuple, list)) and len(obj) == 2:
             self.vectorizer, self.model = obj
             self._classes = getattr(self.model, "classes_", None)
-            logger.info(
-                "[SQLiDetector] Terdeteksi format tuple (vectorizer, model) dari '%s'", path
-            )
+            if IS_DEBUG == "1":
+                logger.info(
+                    "[SQLiDetector] Terdeteksi format tuple (vectorizer, model) dari '%s'", path
+                )
 
         elif isinstance(obj, dict):
             self.vectorizer = (
@@ -232,14 +239,16 @@ class SQLiDetector:
                     "[SQLiDetector] Dict pickle harus berisi key model/classifier/clf/nb."
                 )
             self._classes = getattr(self.model, "classes_", None)
-            logger.info("[SQLiDetector] Terdeteksi format dict dari '%s'", path)
+            if IS_DEBUG == "1":
+                logger.info("[SQLiDetector] Terdeteksi format dict dari '%s'", path)
 
         elif hasattr(obj, "predict"):
             self.model = obj
             self._classes = getattr(obj, "classes_", None)
-            logger.warning(
-                "[SQLiDetector] Bare model tanpa vectorizer dimuat dari '%s'", path
-            )
+            if IS_DEBUG == "1":
+                logger.warning(
+                    "[SQLiDetector] Bare model tanpa vectorizer dimuat dari '%s'", path
+                )
 
         else:
             raise ValueError(
@@ -266,9 +275,10 @@ class SQLiDetector:
             return "sqli" if float(key) != 0 else "legitimate"
         except (ValueError, TypeError):
             pass
-        logger.warning(
-            "[SQLiDetector] Label tidak dikenal '%s', diasumsikan 'legitimate'", raw
-        )
+        if IS_DEBUG == "1":
+            logger.warning(
+                "[SQLiDetector] Label tidak dikenal '%s', diasumsikan 'legitimate'", raw
+            )
         return "legitimate"
 
     # ------------------------------------------------------------------
@@ -321,12 +331,6 @@ class SQLiDetector:
         Menggunakan preprocess_text() konsisten dengan training pipeline.
         Ditambahkan optimalisasi cache performa tinggi untuk memangkas latensi.
         """
-        # Cek Cache Terlebih Dahulu (0.00 ms Latency Hit)
-        if text in self._cache:
-            self._record_metric('pre_filter_ms', 0.0)
-            self._record_metric('ml_ms', 0.0)
-            return self._cache[text]
-
         t_pre_start = time.perf_counter()
 
         if not text or not text.strip():
@@ -340,6 +344,11 @@ class SQLiDetector:
         t_pre_end = time.perf_counter()
         pre_filter_ms = (t_pre_end - t_pre_start) * 1000.0
         self._record_metric('pre_filter_ms', pre_filter_ms)
+
+        # Cache hit tetap mencatat waktu pre-filter aktual request saat ini.
+        if text in self._cache:
+            self._record_metric('ml_ms', 0.0)
+            return self._cache[text]
 
         if is_safe:
             self._record_metric('ml_ms', 0.0)
@@ -433,12 +442,13 @@ def register_middleware(
             label, confidence, proba_map = detector.predict(value)
 
             if label == "sqli":
-                logger.warning(
-                    "[SQLiMiddleware] BLOCKED field='%s' confidence=%.2f%%  payload=%r",
-                    field_name,
-                    confidence * 100,
-                    value[:120],
-                )
+                if IS_DEBUG == "1":
+                    logger.warning(
+                        "[SQLiMiddleware] BLOCKED field='%s' confidence=%.2f%%  payload=%r",
+                        field_name,
+                        confidence * 100,
+                        value[:120],
+                    )
                 session["blocked_payload"] = value
                 session["blocked_field"] = field_name
                 session["blocked_confidence"] = round(confidence, 6)

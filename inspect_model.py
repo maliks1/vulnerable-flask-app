@@ -3,6 +3,12 @@ inspect_model.py — Debug script untuk inspeksi format model_sqli_nb.pkl
 Jalankan: .venv/Scripts/python.exe inspect_model.py
 """
 
+from config import IS_DEBUG
+
+if IS_DEBUG != "1":
+    def print(*args, **kwargs):
+        pass
+
 import os
 import pickle
 import sys

@@ -152,8 +152,8 @@
     <a href="{{ url_for('compare') }}" class="btn btn-sm btn-outline-primary font-weight-bold px-3" style="font-size: 0.75rem;">Visual Compare Lab &rarr;</a>
 </div>
 
-<!-- ML Verdict (setelah POST lolos middleware) -->
-{% if ml_result %}
+    <!-- ML Verdict (setelah POST lolos middleware) -->
+    {% if IS_DEBUG == '1' and ml_result %}
     {% if ml_result.label == 'sqli' %}
     <div class="verdict-banner blocked-local">
         <div class="vb-title" style="color: var(--brand-danger);">
@@ -321,7 +321,9 @@
             <div class="form-group mb-4">
                 <label for="username">
                     Username
+                    {% if IS_DEBUG == '1' %}
                     <span class="badge-ml ml-2" style="font-size: 0.65rem; padding: 2px 6px;">Live ML Monitoring</span>
+                    {% endif %}
                 </label>
                 <input
                     type="text"
@@ -335,12 +337,14 @@
                     oninput="livePredict(this.value)"
                 />
                 
+                {% if IS_DEBUG == '1' %}
                 <div id="live-indicator">
                     <span class="live-chip idle">
                         <span class="live-dot"></span>
                         <span id="live-status-text">Sensor Aktif</span>
                     </span>
                 </div>
+                {% endif %}
             </div>
 
             <div class="form-group mb-4">
@@ -356,9 +360,11 @@
                 />
             </div>
 
+            {% if IS_DEBUG == '1' %}
             <div id="submit-hint" class="alert alert-danger mb-4" style="display:none; border: 1px solid var(--brand-danger-glow); font-size: 0.82rem;">
                 <strong>Akses Ditutup:</strong> Input mengandung pola SQL Injection. Permintaan koneksi ditolak di pintu gerbang.
             </div>
+            {% endif %}
 
             <button type="submit" class="btn btn-exec" id="submitBtn">
                 Otentikasi Aman (Zero-Trust)
@@ -403,6 +409,7 @@
 
 {% block scripts %}
 <script>
+    const IS_DEBUG = {{ 'true' if IS_DEBUG == '1' else 'false' }};
     let _debounceTimer = null;
 
     function livePredict(value) {
@@ -412,6 +419,10 @@
         const submitBtn = document.getElementById('submitBtn');
         const submitHint = document.getElementById('submit-hint');
         const inputEl  = document.getElementById('username');
+
+        if (!IS_DEBUG || !indicator || !submitHint) {
+            return;
+        }
 
         if (!value || !value.trim()) {
             indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot"></span>Sensor Aktif</span>';
@@ -423,9 +434,16 @@
 
         indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot" style="background: var(--brand-primary);"></span>Mengevaluasi Input...</span>';
 
-        document.getElementById('loginForm').addEventListener('submit', function() {
-            document.getElementById('client_sent_time').value = Date.now();
-        });
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm && !loginForm.dataset.debugSubmitBound) {
+            loginForm.dataset.debugSubmitBound = '1';
+            loginForm.addEventListener('submit', function() {
+                const clientTime = document.getElementById('client_sent_time');
+                if (clientTime) {
+                    clientTime.value = Date.now();
+                }
+            });
+        }
 
         _debounceTimer = setTimeout(function () {
             fetch('/api/predict', {
