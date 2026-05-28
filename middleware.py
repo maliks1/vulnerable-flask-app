@@ -1,30 +1,12 @@
-"""
-middleware.py — ML-based SQL Injection detection for Flask
-==========================================================
+﻿"""
+middleware.py - Deteksi SQL Injection berbasis Machine Learning untuk Flask
+========================================================================
 
 Exposes
 -------
-  SQLiDetector   : loads model_sqli_nb.pkl and classifies raw text
+  SQLiDetector   : Memuat model Naive Bayes dan mengklasifikasikan teks mentah
   register_middleware(app, detector, protected_endpoints)
-                 : attaches a before_request guard to a Flask app
-
-Supported pickle formats
-------------------------
-  1. sklearn.pipeline.Pipeline          — used directly
-  2. tuple / list  (vectorizer, model)  — unpacked
-  3. dict  { 'vectorizer': …, 'model': … }
-  4. bare model only (predict / predict_proba must exist)
-     → in this case the pickle MUST be a Pipeline or the vectorizer
-       must be bundled; a RuntimeError is raised on first call otherwise.
-
-Label normalisation
--------------------
-  The detector maps any raw model label to one of two strings:
-    'sqli'        — request is malicious
-    'legitimate'  — request is benign
-  Recognised "sqli" raw labels (case-insensitive):
-    1, 1.0, '1', 'sqli', 'sql injection', 'malicious', 'bad', 'attack',
-    'injection', 'anomaly', 'abnormal', 'yes', 'true', 'positive'
+                 : Menempelkan before_request guard pada aplikasi Flask
 """
 
 from __future__ import annotations
@@ -34,29 +16,27 @@ import os
 import pickle
 import re
 from typing import Any, Dict, Optional, Tuple
+import time
 
 try:
     import joblib as _joblib
-
     _HAS_JOBLIB = True
 except ImportError:
     _joblib = None  # type: ignore[assignment]
     _HAS_JOBLIB = False
 
-import time
 from flask import redirect, request, session, url_for, g
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Label sets
+# Label Sets
 # ---------------------------------------------------------------------------
 
 _SQLI_LABELS: frozenset[str] = frozenset(
     {
         "1",
         "1.0",
-        "sqli",
         "sqli",
         "sql injection",
         "sql_injection",
@@ -88,13 +68,7 @@ _LEGIT_LABELS: frozenset[str] = frozenset(
     }
 )
 
-# Regex untuk input yang jelas-jelas aman — tidak perlu dijalankan ke ML.
-# Hanya mengizinkan: huruf, angka, underscore (\w), spasi, @, titik,
-# tanda hubung, plus, maksimal 200 karakter.
-# Input yang mengandung karakter SQL ( ' ; -- ( ) dll.) TIDAK akan cocok
-# dan akan tetap diperiksa oleh model ML.
-# Tujuan: mencegah false positive pada string pendek seperti "admin" atau
-# "alice" yang sering muncul di contoh SQLi dalam dataset pelatihan.
+# Regex untuk input aman - lewati pemanggilan model ML
 _SAFE_INPUT_RE = re.compile(r"^[\w\s@.\-+]{1,200}$", re.ASCII)
 
 
@@ -102,22 +76,9 @@ _SAFE_INPUT_RE = re.compile(r"^[\w\s@.\-+]{1,200}$", re.ASCII)
 # SQLiDetector
 # ---------------------------------------------------------------------------
 
-
 class SQLiDetector:
     """
-    Flexible loader + classifier for Naive Bayes SQLi detection models.
-
-    Parameters
-    ----------
-    model_path : str
-        Path to the pickle file produced during training.
-        File dapat disimpan dengan joblib.dump() atau pickle.dump().
-        Loader mencoba joblib terlebih dahulu, lalu fallback ke pickle.
-    threshold  : float
-        Minimum probability untuk kelas SQLi agar request diblokir.
-        Default 0.85 — cukup ketat untuk menekan false positive
-        (mis. username "admin" yang salah diklasifikasi sebagai SQLi).
-        Turunkan ke 0.50 untuk sensitivitas penuh (lebih banyak false positive).
+    Loader dan classifier fleksibel untuk model deteksi SQLi Naive Bayes.
     """
 
     def __init__(
@@ -127,74 +88,71 @@ class SQLiDetector:
         use_prefilter: bool = True,
     ) -> None:
         self.threshold = threshold
-        # Pre-filter: jika True, input yang hanya berisi karakter aman
-        # ([\w\s@.\-+]) langsung dikembalikan sebagai 'legitimate' tanpa
-        # memanggil model ML — menghindari false positive pada "admin", "alice", dsb.
         self.use_prefilter = use_prefilter
         self.pipeline: Optional[Any] = None  # sklearn Pipeline (contains vectorizer)
         self.vectorizer: Optional[Any] = None  # standalone vectorizer
         self.model: Optional[Any] = None  # standalone classifier
         self._classes: Optional[Any] = None  # raw class array from the model
+        
+        # Cache internal untuk mempercepat prediksi berulang (LRU Cache style)
+        self._cache: Dict[str, Tuple[str, float, Dict[str, float]]] = {}
+        self._max_cache_size = 2048
 
         self._load(model_path)
 
     # ------------------------------------------------------------------
-    # Private helpers
+    # Private Helpers
     # ------------------------------------------------------------------
 
     def _load(self, path: str) -> None:
         if not os.path.exists(path):
             raise FileNotFoundError(
-                f"[SQLiDetector] Model file not found: '{path}'\n"
-                "Make sure model_sqli_nb.pkl is in the working directory."
+                f"[SQLiDetector] Model file tidak ditemukan: '{path}'"
             )
 
         obj = None
         last_error: Optional[Exception] = None
 
-        # ── Coba joblib dulu (sklearn biasanya disimpan dengan joblib) ──────
+        # Coba load dengan joblib
         if _HAS_JOBLIB and _joblib is not None:
             try:
                 obj = _joblib.load(path)
-                logger.info("[SQLiDetector] Loaded with joblib from '%s'", path)
+                logger.info("[SQLiDetector] Model berhasil dimuat menggunakan joblib dari '%s'", path)
             except Exception as exc:
                 last_error = exc
                 logger.warning(
-                    "[SQLiDetector] joblib.load failed (%s), trying pickle…", exc
+                    "[SQLiDetector] joblib.load gagal (%s), mencoba fallback ke pickle...", exc
                 )
 
-        # ── Fallback ke pickle ───────────────────────────────────────────────
+        # Fallback ke pickle
         if obj is None:
             try:
                 with open(path, "rb") as fh:
                     obj = pickle.load(fh)
-                logger.info("[SQLiDetector] Loaded with pickle from '%s'", path)
+                logger.info("[SQLiDetector] Model berhasil dimuat menggunakan pickle dari '%s'", path)
             except Exception as exc:
                 last_error = exc
-                logger.error("[SQLiDetector] pickle.load also failed: %s", exc)
+                logger.error("[SQLiDetector] pickle.load juga gagal: %s", exc)
 
         if obj is None:
             raise RuntimeError(
                 f"[SQLiDetector] Tidak bisa memuat model dari '{path}'.\n"
-                f"Error terakhir: {last_error}\n"
-                "Pastikan file disimpan dengan joblib.dump() atau pickle.dump()."
+                f"Error terakhir: {last_error}"
             )
 
-        # ① sklearn Pipeline  (has .named_steps)
+        # Evaluasi format objek model
         if hasattr(obj, "named_steps"):
             self.pipeline = obj
             self._classes = getattr(obj, "classes_", None)
-            logger.info("[SQLiDetector] Loaded sklearn Pipeline from '%s'", path)
+            logger.info("[SQLiDetector] Terdeteksi sklearn Pipeline dari '%s'", path)
 
-        # ② tuple / list  →  (vectorizer, model)
         elif isinstance(obj, (tuple, list)) and len(obj) == 2:
             self.vectorizer, self.model = obj
             self._classes = getattr(self.model, "classes_", None)
             logger.info(
-                "[SQLiDetector] Loaded (vectorizer, model) tuple from '%s'", path
+                "[SQLiDetector] Terdeteksi format tuple (vectorizer, model) dari '%s'", path
             )
 
-        # ③ dict  →  {'vectorizer': …, 'model': …}
         elif isinstance(obj, dict):
             self.vectorizer = (
                 obj.get("vectorizer")
@@ -210,56 +168,45 @@ class SQLiDetector:
             )
             if self.model is None:
                 raise ValueError(
-                    "[SQLiDetector] Dict pickle must contain a key like "
-                    "'model', 'classifier', 'clf', or 'nb'."
+                    "[SQLiDetector] Dict pickle harus berisi key model/classifier/clf/nb."
                 )
             self._classes = getattr(self.model, "classes_", None)
-            logger.info("[SQLiDetector] Loaded dict-format pickle from '%s'", path)
+            logger.info("[SQLiDetector] Terdeteksi format dict dari '%s'", path)
 
-        # ④ bare model
         elif hasattr(obj, "predict"):
             self.model = obj
             self._classes = getattr(obj, "classes_", None)
             logger.warning(
-                "[SQLiDetector] Loaded bare model from '%s' — no vectorizer "
-                "bundled.  Predictions will fail unless the model is a "
-                "Pipeline or accepts raw strings.",
-                path,
+                "[SQLiDetector] Bare model tanpa vectorizer dimuat dari '%s'", path
             )
 
         else:
             raise ValueError(
-                f"[SQLiDetector] Unrecognised pickle format: {type(obj)}.  "
-                "Save the model as a Pipeline or (vectorizer, model) tuple."
+                f"[SQLiDetector] Format pickle tidak dikenal: {type(obj)}."
             )
 
     def _vectorize(self, text: str):
-        """Transform raw text using the bundled vectorizer."""
+        """Vectorize text using the bundled vectorizer."""
         if self.vectorizer is None:
             raise RuntimeError(
-                "[SQLiDetector] No vectorizer found in the pickle file.  "
-                "Re-save the model as:\n"
-                "  • sklearn.pipeline.Pipeline([('vect', vectorizer), ('clf', model)])\n"
-                "  • tuple: (vectorizer, model)\n"
-                "  • dict:  {'vectorizer': …, 'model': …}"
+                "[SQLiDetector] Vectorizer tidak ditemukan di file model."
             )
         return self.vectorizer.transform([text])
 
     @staticmethod
     def _normalise_label(raw: Any) -> str:
-        """Map any raw label to 'sqli' or 'legitimate'."""
+        """Normalisasi label raw model ke 'sqli' atau 'legitimate'."""
         key = str(raw).strip().lower()
         if key in _SQLI_LABELS:
             return "sqli"
         if key in _LEGIT_LABELS:
             return "legitimate"
-        # fallback: non-zero numeric → sqli
         try:
             return "sqli" if float(key) != 0 else "legitimate"
         except (ValueError, TypeError):
             pass
         logger.warning(
-            "[SQLiDetector] Unknown label '%s' — treating as 'legitimate'", raw
+            "[SQLiDetector] Label tidak dikenal '%s', diasumsikan 'legitimate'", raw
         )
         return "legitimate"
 
@@ -269,10 +216,7 @@ class SQLiDetector:
 
     def predict_proba_map(self, text: str) -> Dict[str, float]:
         """
-        Return a dict mapping each raw class label → probability.
-
-        Example (binary model with labels 0 / 1):
-            {'0': 0.032, '1': 0.968}
+        Mengembalikan dict pemetaan label kelas ke nilai probabilitas.
         """
         try:
             if self.pipeline is not None:
@@ -287,18 +231,17 @@ class SQLiDetector:
                     else range(len(raw_proba))
                 )
             else:
-                raise RuntimeError("[SQLiDetector] No pipeline or model loaded.")
+                raise RuntimeError("[SQLiDetector] Model belum ter-load.")
             return {str(c): float(p) for c, p in zip(classes, raw_proba)}
 
         except AttributeError:
-            # Model does not support predict_proba → hard predict only
             if self.pipeline is not None:
                 raw_label = self.pipeline.predict([text])[0]
             elif self.model is not None:
                 X = self._vectorize(text)
                 raw_label = self.model.predict(X)[0]
             else:
-                raise RuntimeError("[SQLiDetector] No pipeline or model loaded.")
+                raise RuntimeError("[SQLiDetector] Model belum ter-load.")
             label = self._normalise_label(raw_label)
             return {
                 "sqli": 1.0 if label == "sqli" else 0.0,
@@ -307,15 +250,17 @@ class SQLiDetector:
 
     def predict(self, text: str) -> Tuple[str, float, Dict[str, float]]:
         """
-        Classify *text* and return a 3-tuple:
+        Mengklasifikasikan teks dan mengembalikan 3-tuple:
+        (label, confidence, proba_map)
 
-            (label, confidence, proba_map)
-
-        label      : 'sqli' | 'legitimate'
-        confidence : float in [0, 1] - probability of the predicted class
-        proba_map  : full dict of raw_label -> probability
+        Ditambahkan optimalisasi cache performa tinggi untuk memangkas latensi.
         """
-        # Record start of pre-filter / sanitization
+        # Cek Cache Terlebih Dahulu (0.00 ms Latency Hit)
+        if text in self._cache:
+            self._record_metric('pre_filter_ms', 0.0)
+            self._record_metric('ml_ms', 0.0)
+            return self._cache[text]
+
         t_pre_start = time.perf_counter()
 
         if not text or not text.strip():
@@ -324,28 +269,29 @@ class SQLiDetector:
             self._record_metric('ml_ms', 0.0)
             return "legitimate", 1.0, {"legitimate": 1.0}
 
-        # pre-filter: lewati ML untuk input yang jelas-jelas aman
+        # Pre-filter regex untuk string yang sangat aman
         is_safe = self.use_prefilter and _SAFE_INPUT_RE.match(text)
         t_pre_end = time.perf_counter()
         pre_filter_ms = (t_pre_end - t_pre_start) * 1000.0
         self._record_metric('pre_filter_ms', pre_filter_ms)
 
         if is_safe:
-            logger.debug("[SQLiDetector] Pre-filter pass (no SQL metachar): %r", text)
             self._record_metric('ml_ms', 0.0)
-            return "legitimate", 0.95, {"0": 0.95, "1": 0.05}
+            result = ("legitimate", 0.95, {"0": 0.95, "1": 0.05})
+            # Simpan ke cache
+            if len(self._cache) < self._max_cache_size:
+                self._cache[text] = result
+            return result
 
-        # ML Prediction Phase
+        # Prediksi ML
         t_ml_start = time.perf_counter()
         proba_map = self.predict_proba_map(text)
 
-        # Find the raw label with the highest probability
         raw_best = max(proba_map, key=lambda k: proba_map[k])
         confidence = proba_map[raw_best]
         label = self._normalise_label(raw_best)
 
-        # Apply threshold: if the SQLi-class probability is below threshold,
-        # treat as legitimate even if it is the argmax.
+        # Ambang batas deteksi
         if label == "sqli" and confidence < self.threshold:
             label = "legitimate"
 
@@ -353,10 +299,16 @@ class SQLiDetector:
         ml_ms = (t_ml_end - t_ml_start) * 1000.0
         self._record_metric('ml_ms', ml_ms)
 
-        return label, confidence, proba_map
+        result = (label, confidence, proba_map)
+        
+        # Simpan ke cache
+        if len(self._cache) < self._max_cache_size:
+            self._cache[text] = result
+
+        return result
 
     def _record_metric(self, name: str, value: float) -> None:
-        """Helper to record metrics into Flask global g if available."""
+        """Helper untuk mencatat performa ke Flask globals (g)."""
         try:
             if g:
                 if not hasattr(g, 'sqli_metrics'):
@@ -366,15 +318,11 @@ class SQLiDetector:
             pass
 
     def is_sqli(self, text: str) -> bool:
-        """Convenience wrapper — returns True when SQLi is detected."""
+        """Helper instan deteksi SQLi."""
         label, _, _ = self.predict(text)
         return label == "sqli"
 
-    # ------------------------------------------------------------------
-    # String representation
-    # ------------------------------------------------------------------
-
-    def __repr__(self) -> str:  # pragma: no cover
+    def __repr__(self) -> str:
         kind = (
             "Pipeline"
             if self.pipeline is not None
@@ -387,14 +335,13 @@ class SQLiDetector:
             f"classes={self._classes}, "
             f"threshold={self.threshold}, "
             f"prefilter={self.use_prefilter}, "
-            f"loader={'joblib' if _HAS_JOBLIB and _joblib is not None else 'pickle'})"
+            f"cache_size={len(self._cache)})"
         )
 
 
 # ---------------------------------------------------------------------------
-# Flask middleware factory
+# Flask Middleware Factory
 # ---------------------------------------------------------------------------
-
 
 def register_middleware(
     app,
@@ -403,23 +350,10 @@ def register_middleware(
     block_endpoint: str = "blocked",
 ) -> None:
     """
-    Attach a before_request hook to *app* that checks every POST field
-    arriving at any of the *protected_endpoints*.
-
-    On detection the function stores detection info in the session and
-    redirects to *block_endpoint*.
-
-    Parameters
-    ----------
-    app                  : Flask application instance
-    detector             : SQLiDetector instance
-    protected_endpoints  : tuple of Flask endpoint names to guard
-    block_endpoint       : endpoint name for the "blocked" page
+    Menambahkan hook before_request untuk validasi field POST.
     """
-
     @app.before_request
     def _sqli_guard():
-        # Only intercept POST requests to the guarded endpoints
         if request.method != "POST":
             return None
         if request.endpoint not in protected_endpoints:
@@ -439,7 +373,6 @@ def register_middleware(
                     confidence * 100,
                     value[:120],
                 )
-                # Store detection context in server-side session
                 session["blocked_payload"] = value
                 session["blocked_field"] = field_name
                 session["blocked_confidence"] = round(confidence, 6)
@@ -448,4 +381,4 @@ def register_middleware(
                 }
                 return redirect(url_for(block_endpoint))
 
-        return None  # allow the request to continue
+        return None

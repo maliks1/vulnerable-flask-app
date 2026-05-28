@@ -1,23 +1,27 @@
-"""
-app_protected.py  —  Flask app TERLINDUNGI (port 5002)
+﻿"""
+app_protected.py  -  Flask app TERLINDUNGI (port 5002)
 
 Mendemonstrasikan perbedaan antara aplikasi yang rentan (main.py :5001)
 dengan aplikasi yang dilindungi middleware ML Naive Bayes.
 
 Routes
-──────
-  GET        /                   → redirect ke /protected-login
-  GET / POST /protected-login    → login dengan ML SQLi guard (before_request)
-  GET        /blocked            → halaman "request diblokir oleh ML"
-  GET        /home               → dashboard pasca-login
-  GET / POST /compare            → halaman komparasi Vulnerable vs Protected
-  POST       /api/predict        → JSON endpoint untuk live prediksi (AJAX)
+------
+  GET        /                   -> redirect ke /protected-login
+  GET / POST /protected-login    -> login dengan ML SQLi guard (before_request)
+  GET        /blocked            -> halaman "request diblokir oleh ML"
+  GET        /home               -> dashboard pasca-login
+  GET / POST /compare            -> halaman komparasi Vulnerable vs Protected
+  POST       /api/predict        -> JSON endpoint untuk live prediksi (AJAX)
 """
 
 from __future__ import annotations
 
 import logging
 import sqlite3
+import json
+from datetime import datetime
+import time
+import os
 
 from flask import (
     Flask,
@@ -29,29 +33,31 @@ from flask import (
     session,
     url_for,
     abort,
+    g
 )
-import json
-from datetime import datetime
-import time
-from flask import g
 
+# Import helper functions from centralized utils module
+from utils import sql_connect, parse_statements
 from middleware import SQLiDetector
 
-# ── Logging ───────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
-    format="[%(levelname)s] %(name)s — %(message)s",
+    format="[%(levelname)s] %(name)s - %(message)s",
 )
 logger = logging.getLogger("app_protected")
 
-# ── App bootstrap ─────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# App Bootstrap
+# ---------------------------------------------------------------------------
 app = Flask(__name__)
-app.secret_key = "protected-app-secret-key-2024"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "protected-app-secret-key-2024")
 
-DB_PATH = "users.db"
 MODEL_PATH = "model_sqli_nb.pkl"
 
-# Muat model sekali saat startup — error langsung terlihat
+# Muat model sekali saat startup - error langsung terlihat
 try:
     detector = SQLiDetector(MODEL_PATH)
     logger.info("Model SQLi berhasil dimuat dari %s", MODEL_PATH)
@@ -60,56 +66,9 @@ except Exception as exc:
     raise
 
 
-# ── Database helper ───────────────────────────────────────────────────────────
-def sql_connect() -> sqlite3.Connection | None:
-    try:
-        return sqlite3.connect(DB_PATH)
-    except sqlite3.Error as err:
-        logger.error("DB connection error: %s", err)
-        return None
-
-
-# ── SQL statement splitter (sama persis dengan main.py) ───────────────────────
-def parse_statements(raw_sql: str) -> list[str]:
-    """
-    Pisahkan SQL mentah menjadi statement individual pada titik koma,
-    sambil menghormati string literal yang di-quote tunggal.
-    """
-    statements: list[str] = []
-    buf: list[str] = []
-    in_str = False
-    i = 0
-
-    while i < len(raw_sql):
-        ch = raw_sql[i]
-        if in_str:
-            buf.append(ch)
-            if ch == "'":
-                if i + 1 < len(raw_sql) and raw_sql[i + 1] == "'":
-                    buf.append("'")
-                    i += 1
-                else:
-                    in_str = False
-        elif ch == "'":
-            in_str = True
-            buf.append(ch)
-        elif ch == ";":
-            stmt = "".join(buf).strip()
-            if stmt:
-                statements.append(stmt)
-            buf = []
-        else:
-            buf.append(ch)
-        i += 1
-
-    tail = "".join(buf).strip()
-    if tail:
-        statements.append(tail)
-
-    return statements
-
-
-# ── Simulasi query rentan (untuk halaman /compare) ────────────────────────────
+# ---------------------------------------------------------------------------
+# Simulasi query rentan (untuk halaman /compare)
+# ---------------------------------------------------------------------------
 def run_vulnerable_simulation(username: str, password: str) -> tuple[str, list[dict]]:
     """
     Jalankan query TIDAK AMAN persis seperti main.py.
@@ -185,7 +144,7 @@ def classify_verdict(
             "type": "true_positive",
             "icon": "check-circle",
             "label": "True Positive",
-            "msg": "Model benar — serangan SQLi terdeteksi dan diblokir.",
+            "msg": "Model benar - serangan SQLi terdeteksi dan diblokir.",
             "color": "hdr-green",
         }
     if ml_blocked and not any_attack:
@@ -193,7 +152,7 @@ def classify_verdict(
             "type": "false_positive",
             "icon": "alert-triangle",
             "label": "False Positive",
-            "msg": "Model salah — input sah diblokir (false alarm).",
+            "msg": "Model salah - input sah diblokir (false alarm).",
             "color": "hdr-yellow",
         }
     if not ml_blocked and any_attack:
@@ -201,7 +160,7 @@ def classify_verdict(
             "type": "false_negative",
             "icon": "x-circle",
             "label": "False Negative",
-            "msg": "Model GAGAL — serangan lolos dari deteksi ML!",
+            "msg": "Model GAGAL - serangan lolos dari deteksi ML!",
             "color": "hdr-red",
         }
     # not blocked, no attack
@@ -209,12 +168,14 @@ def classify_verdict(
         "type": "true_negative",
         "icon": "check-circle",
         "label": "True Negative",
-        "msg": "Model benar — input sah diloloskan.",
+        "msg": "Model benar - input sah diloloskan.",
         "color": "hdr-green",
     }
 
 
-# ── Middleware: before_request SQLi guard ─────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Middleware: before_request SQLi guard
+# ---------------------------------------------------------------------------
 @app.before_request
 def init_request_timing():
     g.request_start_time = time.perf_counter()
@@ -247,7 +208,7 @@ def init_request_timing():
 def ml_sqli_guard() -> None:
     """
     Periksa setiap field form pada endpoint protected_login.
-    Jika ML mendeteksi SQLi → simpan info ke session → redirect ke /blocked.
+    Jika ML mendeteksi SQLi -> simpan info ke session -> redirect ke /blocked.
     """
     if request.endpoint != "protected_login" or request.method != "POST":
         return  # hanya aktif di POST /protected-login
@@ -330,15 +291,15 @@ def ml_sqli_guard() -> None:
             abort(403)
 
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
-
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @app.route("/")
 def index():
     return redirect(url_for("protected_login"))
 
 
-# ── /protected-login ──────────────────────────────────────────────────────────
 @app.route("/protected-login", methods=["GET", "POST"])
 def protected_login():
     """
@@ -375,7 +336,7 @@ def protected_login():
         except Exception as exc:
             logger.warning("Prediksi ML gagal: %s", exc)
 
-        # Autentikasi normal (parameterized — aman)
+        # Autentikasi normal (parameterized - aman)
         conn = sql_connect()
         if conn:
             cursor = conn.cursor()
@@ -437,7 +398,6 @@ def protected_login():
     )
 
 
-# ── /blocked ──────────────────────────────────────────────────────────────────
 @app.route("/blocked")
 def blocked():
     """Halaman ditampilkan saat middleware ML memblokir request."""
@@ -455,7 +415,6 @@ def blocked():
     )
 
 
-# ── /home ─────────────────────────────────────────────────────────────────────
 @app.route("/home")
 def home():
     if "user" not in session:
@@ -465,13 +424,12 @@ def home():
     return render_template("home.html", username=username)
 
 
-# ── /compare ──────────────────────────────────────────────────────────────────
 @app.route("/compare", methods=["GET", "POST"])
 def compare():
     """
     Halaman komparasi interaktif:
-      - Kolom kiri  → simulasi app rentan (query dieksekusi langsung)
-      - Kolom kanan → app terlindungi dengan ML middleware
+      - Kolom kiri  -> simulasi app rentan (query dieksekusi langsung)
+      - Kolom kanan -> app terlindungi dengan ML middleware
     """
     result = None
 
@@ -479,22 +437,33 @@ def compare():
         username = request.form.get("username", "")
         password = request.form.get("password", "")
 
-        # ── Prediksi ML ──────────────────────────────────────────────────────
+        # Catat waktu awal request simulasi
+        t_req_start = time.perf_counter()
+        
+        # Prediksi ML
         try:
+            t_ml_start = time.perf_counter()
             ml_label, ml_confidence, ml_proba_map = detector.predict(username)
+            t_ml_end = time.perf_counter()
+            ml_total_ms = (t_ml_end - t_ml_start) * 1000.0
         except Exception as exc:
             ml_label = "error"
             ml_confidence = 0.0
             ml_proba_map = {}
+            ml_total_ms = 0.0
             logger.error("Prediksi ML error: %s", exc)
 
         ml_blocked = ml_label == "sqli"
 
-        # ── Simulasi query rentan ─────────────────────────────────────────────
+        # Simulasi query rentan
+        t_sql_start = time.perf_counter()
         vuln_query, vuln_results = run_vulnerable_simulation(username, password)
+        t_sql_end = time.perf_counter()
+        sql_total_ms = (t_sql_end - t_sql_start) * 1000.0
+        
         vuln_bypass = check_vuln_bypass(vuln_results)
 
-        # ── Verdict ───────────────────────────────────────────────────────────
+        # Verdict
         verdict = classify_verdict(ml_blocked, vuln_bypass, vuln_results)
 
         result = {
@@ -522,22 +491,10 @@ def compare():
     return render_template("compare.html", result=result)
 
 
-# ── /api/predict  (AJAX) ──────────────────────────────────────────────────────
 @app.route("/api/predict", methods=["POST"])
 def api_predict():
     """
     JSON endpoint untuk live prediksi saat mengetik.
-
-    Request body (JSON):
-      { "text": "<string to classify>" }
-
-    Response:
-      {
-        "label":      "sqli" | "legitimate",
-        "confidence": 0.0–1.0,
-        "is_sqli":    true | false,
-        "proba_map":  { "<class>": <prob>, ... }
-      }
     """
     data = request.get_json(silent=True) or {}
     text = data.get("text", "")
@@ -561,7 +518,6 @@ def api_predict():
     )
 
 
-# ── /logout ───────────────────────────────────────────────────────────────────
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
@@ -569,7 +525,6 @@ def logout():
     return redirect(url_for("protected_login"))
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 # Custom 403 Forbidden Error Handler
 @app.errorhandler(403)
 def forbidden_error(error):

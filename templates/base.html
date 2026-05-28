@@ -171,7 +171,8 @@
 
     <div
       class="container py-5 px-3 px-md-4"
-      style="{% block container_style %}max-width: 860px;{% endblock %}"
+      style="max-width: 860px;"
+      id="main-container"
     >
       <!-- Flash messages -->
       {% with messages = get_flashed_messages(with_categories=true) %} {% if
@@ -219,6 +220,15 @@
           } else {
             moonIcon.classList.add("d-none");
             sunIcon.classList.remove("d-none");
+          }
+        }
+
+        // Apply custom container max-width if specified
+        const customWidth = "{{ container_max_width | default('') }}";
+        if (customWidth) {
+          const container = document.getElementById("main-container");
+          if (container) {
+            container.style.maxWidth = customWidth + "px";
           }
         }
 

@@ -1,80 +1,18 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+﻿from flask import Flask, render_template, request, redirect, url_for, flash, session
 import sqlite3
 import subprocess
 import sys
 import os
 
+# Import helper functions from centralized utils module
+from utils import sql_connect, parse_statements
+
 app = Flask(__name__)
-app.secret_key = 'this is your key'
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'this-is-a-fallback-vulnerable-key-2024')
 
-DB_PATH = 'users.db'
-
-
-# ── Database helper ────────────────────────────────────────────────────────────
-
-def sql_connect():
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        return conn
-    except sqlite3.Error as err:
-        print(f"[DB ERROR] {err}")
-        return None
-
-
-# ── SQL statement splitter (respects single-quoted strings) ───────────────────
-
-def parse_statements(raw_sql):
-    """
-    Split a raw SQL string into individual statements on ';',
-    while correctly handling single-quoted string literals
-    (including SQL-escaped '' quotes inside strings).
-
-    Example:
-        "SELECT * FROM users; DROP TABLE users"
-        → ["SELECT * FROM users", "DROP TABLE users"]
-
-        "SELECT * FROM users WHERE name='O''Brien'; SELECT 1"
-        → ["SELECT * FROM users WHERE name='O''Brien'", "SELECT 1"]
-    """
-    statements = []
-    buf = []
-    in_str = False
-    i = 0
-
-    while i < len(raw_sql):
-        ch = raw_sql[i]
-
-        if in_str:
-            buf.append(ch)
-            if ch == "'":
-                # escaped quote '' → stay inside the string
-                if i + 1 < len(raw_sql) and raw_sql[i + 1] == "'":
-                    buf.append("'")
-                    i += 1
-                else:
-                    in_str = False
-        elif ch == "'":
-            in_str = True
-            buf.append(ch)
-        elif ch == ";":
-            stmt = "".join(buf).strip()
-            if stmt:
-                statements.append(stmt)
-            buf = []
-        else:
-            buf.append(ch)
-
-        i += 1
-
-    # Trailing statement without a semicolon
-    tail = "".join(buf).strip()
-    if tail:
-        statements.append(tail)
-
-    return statements
-
-
-# ── Routes ─────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @app.route('/home')
 def home():
@@ -126,7 +64,7 @@ def login():
         raw_username = request.form.get('username', '')
         raw_password = request.form.get('password', '')
 
-        # ── Build the VULNERABLE login query ────────────────────────────────
+        # Build the VULNERABLE login query
         # Intentionally uses f-string concatenation instead of ? placeholders.
         # This is the root cause of ALL injection vulnerabilities below.
         login_query = (
@@ -135,7 +73,7 @@ def login():
         )
         executed_query = login_query
 
-        # ── Execute vulnerable query directly (single execute path) ──────────
+        # Execute vulnerable query directly (single execute path)
         conn = sql_connect()
         if conn is None:
             auth_status = 'error'
@@ -189,21 +127,22 @@ def login():
     )
 
 
-# ── Entry point ────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Entry Point
+# ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # ── Auto-launch app_protected.py di background (port 5002) ──────────────
+    # Auto-launch app_protected.py in the background (port 5002)
     protected_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app_protected.py')
     protected_proc = subprocess.Popen(
         [sys.executable, protected_script],
-        # stdout/stderr = None → output langsung muncul di terminal ini
     )
-    print(f"[INFO] app_protected.py berjalan (PID {protected_proc.pid}) → http://localhost:5002")
+    print(f"[INFO] app_protected.py berjalan (PID {protected_proc.pid}) -> http://localhost:5002")
 
     try:
-        # debug=True → full Flask tracebacks in browser (extra info leakage)
+        # debug=True enables full Flask tracebacks in browser (extra info leakage)
         app.run(debug=True, host='0.0.0.0', port=5001, use_reloader=False)
     finally:
-        # Pastikan subprocess ikut mati saat main.py dihentikan
+        # Ensure the subprocess dies when main.py stops
         protected_proc.terminate()
         print("[INFO] app_protected.py dihentikan.")
