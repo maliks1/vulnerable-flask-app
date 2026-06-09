@@ -20,6 +20,21 @@ def sql_connect(db_path: str = DB_PATH) -> sqlite3.Connection | None:
             print(f"[DB ERROR] {err}")
         return None
 
+from contextlib import contextmanager
+
+@contextmanager
+def db_session(db_path: str = DB_PATH):
+    """
+    Context manager untuk koneksi database SQLite.
+    Menjamin koneksi ditutup secara otomatis saat keluar dari block 'with'.
+    """
+    conn = sql_connect(db_path)
+    try:
+        yield conn
+    finally:
+        if conn:
+            conn.close()
+
 def parse_statements(raw_sql: str) -> list[str]:
     """
     Split a raw SQL string into individual statements on ';',

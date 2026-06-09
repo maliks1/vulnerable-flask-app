@@ -364,7 +364,7 @@
                 <div class="status-panel status-blocked">
                     <h5 class="font-weight-bold mb-2">AKSES DIHENTIKAN</h5>
                     <p class="mb-3 opacity-80" style="font-size:0.85rem;">Middleware mencegah parser database terinfeksi kueri berbahaya.</p>
-                    <pre style="font-size:0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); padding:10px;"><span style="color:var(--brand-danger);">HTTP 302 Redirect</span> &rarr; /blocked<br><span style="color:var(--text-muted);">// Alur kueri dihentikan seketika</span></pre>
+                    <pre style="font-size:0.8rem; background: var(--bg-input); border: 1px solid var(--border-color); padding:10px;"><span style="color:var(--brand-danger);">HTTP 403 Forbidden</span><br><span style="color:var(--text-muted);">// Alur kueri dihentikan seketika (Akses Ditolak)</span></pre>
                 </div>
                 {% else %}
                 <div class="status-panel status-passed">

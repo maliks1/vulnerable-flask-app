@@ -17,6 +17,7 @@ import pickle
 import re
 from typing import Any, Dict, Optional, Tuple
 import time
+from collections import OrderedDict
 
 try:
     import joblib as _joblib
@@ -157,7 +158,7 @@ class SQLiDetector:
         self._classes: Optional[Any] = None  # raw class array from the model
         
         # Cache internal untuk mempercepat prediksi berulang (LRU Cache style)
-        self._cache: Dict[str, Tuple[str, float, Dict[str, float]]] = {}
+        self._cache: OrderedDict[str, Tuple[str, float, Dict[str, float]]] = OrderedDict()
         self._max_cache_size = 2048
 
         self._load(model_path)
@@ -348,14 +349,17 @@ class SQLiDetector:
         # Cache hit tetap mencatat waktu pre-filter aktual request saat ini.
         if text in self._cache:
             self._record_metric('ml_ms', 0.0)
+            self._cache.move_to_end(text)
             return self._cache[text]
 
         if is_safe:
             self._record_metric('ml_ms', 0.0)
             result = ("legitimate", 0.95, {"0": 0.95, "1": 0.05})
-            # Simpan ke cache
-            if len(self._cache) < self._max_cache_size:
-                self._cache[text] = result
+            # Simpan ke cache dengan LRU eviction
+            self._cache[text] = result
+            self._cache.move_to_end(text)
+            if len(self._cache) > self._max_cache_size:
+                self._cache.popitem(last=False)
             return result
 
         # Prediksi ML (dengan preprocessing text)
@@ -376,9 +380,11 @@ class SQLiDetector:
 
         result = (label, confidence, proba_map)
         
-        # Simpan ke cache
-        if len(self._cache) < self._max_cache_size:
-            self._cache[text] = result
+        # Simpan ke cache dengan LRU eviction
+        self._cache[text] = result
+        self._cache.move_to_end(text)
+        if len(self._cache) > self._max_cache_size:
+            self._cache.popitem(last=False)
 
         return result
 
@@ -415,46 +421,3 @@ class SQLiDetector:
 
 
 # ---------------------------------------------------------------------------
-# Flask Middleware Factory
-# ---------------------------------------------------------------------------
-
-def register_middleware(
-    app,
-    detector: SQLiDetector,
-    protected_endpoints: tuple[str, ...] = ("protected_login",),
-    block_endpoint: str = "blocked",
-) -> None:
-    """
-    Menambahkan hook before_request untuk validasi field POST.
-    """
-    @app.before_request
-    def _sqli_guard():
-        if request.method != "POST":
-            return None
-        if request.endpoint not in protected_endpoints:
-            return None
-
-        form_data = request.form.to_dict()
-        for field_name, value in form_data.items():
-            if not value:
-                continue
-
-            label, confidence, proba_map = detector.predict(value)
-
-            if label == "sqli":
-                if IS_DEBUG == "1":
-                    logger.warning(
-                        "[SQLiMiddleware] BLOCKED field='%s' confidence=%.2f%%  payload=%r",
-                        field_name,
-                        confidence * 100,
-                        value[:120],
-                    )
-                session["blocked_payload"] = value
-                session["blocked_field"] = field_name
-                session["blocked_confidence"] = round(confidence, 6)
-                session["blocked_proba_map"] = {
-                    k: round(v, 6) for k, v in proba_map.items()
-                }
-                return redirect(url_for(block_endpoint))
-
-        return None

@@ -6,7 +6,7 @@ import os
 from config import IS_DEBUG
 
 # Import helper functions from centralized utils module
-from utils import sql_connect, parse_statements
+from utils import sql_connect, parse_statements, db_session
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'this-is-a-fallback-vulnerable-key-2024')
@@ -75,47 +75,45 @@ def login():
         executed_query = login_query
 
         # Execute vulnerable query directly (single execute path)
-        conn = sql_connect()
-        if conn is None:
-            auth_status = 'error'
-            sql_error_message = 'Database connection failed.'
-        else:
-            cursor = conn.cursor()
-            try:
-                if IS_DEBUG == "1":
-                    print(f"[SQLI EXEC] {login_query}")
-                cursor.execute(login_query)
-                query_columns = [d[0] for d in (cursor.description or [])]
-                first_row = cursor.fetchone()
-
-                if first_row:
-                    auth_status = 'success'
-                    query_rows = [list(first_row)]
-
-                    if 'username' in query_columns:
-                        db_username = first_row[query_columns.index('username')]
-                    elif len(first_row) > 1:
-                        db_username = first_row[1]
-                    else:
-                        db_username = first_row[0]
-
-                    db_username = str(db_username)
-                    session['user'] = db_username
-                    flash(f'Login berhasil! Welcome, {db_username}', 'success')
-                    return redirect(url_for('home'))
+        try:
+            with db_session() as conn:
+                if conn is None:
+                    auth_status = 'error'
+                    sql_error_message = 'Database connection failed.'
                 else:
-                    auth_status = 'failed'
-                    flash('Login gagal: username/password tidak valid.', 'danger')
+                    cursor = conn.cursor()
+                    try:
+                        if IS_DEBUG == "1":
+                            print(f"[SQLI EXEC] {login_query}")
+                        cursor.execute(login_query)
+                        query_columns = [d[0] for d in (cursor.description or [])]
+                        first_row = cursor.fetchone()
 
-            except sqlite3.Error as exc:
-                auth_status = 'error'
-                sql_error_message = str(exc)
-                if IS_DEBUG == "1":
-                    print(f"[SQL ERROR] {exc}")
+                        if first_row:
+                            auth_status = 'success'
+                            query_rows = [list(first_row)]
 
-            finally:
-                cursor.close()
-                conn.close()
+                            if 'username' in query_columns:
+                                db_username = first_row[query_columns.index('username')]
+                            elif len(first_row) > 1:
+                                db_username = first_row[1]
+                            else:
+                                db_username = first_row[0]
+
+                            db_username = str(db_username)
+                            session['user'] = db_username
+                            flash(f'Login berhasil! Welcome, {db_username}', 'success')
+                            return redirect(url_for('home'))
+                        else:
+                            auth_status = 'failed'
+                            flash('Login gagal: username/password tidak valid.', 'danger')
+                    finally:
+                        cursor.close()
+        except sqlite3.Error as exc:
+            auth_status = 'error'
+            sql_error_message = str(exc)
+            if IS_DEBUG == "1":
+                print(f"[SQL ERROR] {exc}")
 
     return render_template(
         'login.html',

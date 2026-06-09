@@ -8,7 +8,6 @@ Routes
 ------
   GET        /                   -> redirect ke /protected-login
   GET / POST /protected-login    -> login dengan ML SQLi guard (before_request)
-  GET        /blocked            -> halaman "request diblokir oleh ML"
   GET        /home               -> dashboard pasca-login
   GET / POST /compare            -> halaman komparasi Vulnerable vs Protected
   POST       /api/predict        -> JSON endpoint untuk live prediksi (AJAX)
@@ -38,7 +37,7 @@ from flask import (
 
 # Import helper functions from centralized utils module
 from config import IS_DEBUG
-from utils import sql_connect, parse_statements
+from utils import sql_connect, parse_statements, db_session
 from middleware import SQLiDetector, preprocess_text
 
 # ---------------------------------------------------------------------------
@@ -367,64 +366,64 @@ def protected_login():
                 logger.warning("Prediksi ML gagal: %s", exc)
 
         # Autentikasi normal (parameterized - aman)
-        conn = sql_connect()
-        if conn:
-            cursor = conn.cursor()
-            try:
-                t_db_start = time.perf_counter()
-                cursor.execute(
-                    "SELECT id FROM users WHERE username = ? AND password = ?",
-                    (raw_username, raw_password),
-                )
-                row = cursor.fetchone()
-                t_db_end = time.perf_counter()
-                db_ms = (t_db_end - t_db_start) * 1000.0
-                
-                if IS_DEBUG == "1" and hasattr(g, 'sqli_metrics'):
-                    g.sqli_metrics['db_ms'] = db_ms
-                    t_now = time.perf_counter()
-                    total_ms = (t_now - g.request_start_time) * 1000.0
-                    g.sqli_metrics['total_ms'] = total_ms
-                    
-                    if IS_DEBUG == "1":
-                        # Log timing breakdown to console
-                        logger.info(
-                            "\n"
-                            "============================================================\n"
-                            " [TELEMETRY] ALLOWED REQUEST (ZERO-TRUST PASSED)\n"
-                            "------------------------------------------------------------\n"
-                            " HTTP Request Arrival   : [OK] (Net Latency: %.4f ms)\n"
-                            " Query Pre-Filter Check : %.4f ms\n"
-                            " ML Model Prediction    : %.4f ms\n"
-                            " Database Query Exec    : %.4f ms\n"
-                            "------------------------------------------------------------\n"
-                            " Total Backend Latency  : %.4f ms\n"
-                            " Sent Input Username    : %s\n"
-                            " (Debugging) Username After Preprocessing : %s\n"
-                            " Sent Input Password    : %s\n"
-                            " (Debugging) Password After Preprocessing : %s\n"
-                            "============================================================",
-                            g.sqli_metrics.get("network_ms", 0.0),
-                            g.sqli_metrics.get("pre_filter_ms", 0.0),
-                            g.sqli_metrics.get("ml_ms", 0.0),
-                            db_ms,
-                            total_ms,
-                            g.sqli_metrics.get("username_val", ""),
-                            username_preprocessed,
-                            g.sqli_metrics.get("password_val", ""),
-                            password_preprocessed,
+        try:
+            with db_session() as conn:
+                if conn:
+                    cursor = conn.cursor()
+                    try:
+                        t_db_start = time.perf_counter()
+                        cursor.execute(
+                            "SELECT id FROM users WHERE username = ? AND password = ?",
+                            (raw_username, raw_password),
                         )
-                if row:
-                    session["user"] = raw_username
-                    login_ok = True
-                    flash("Login berhasil!", "success")
-                else:
-                    flash("Username atau password salah.", "danger")
-            except sqlite3.Error as exc:
-                flash(f"Database error: {exc}", "danger")
-            finally:
-                cursor.close()
-                conn.close()
+                        row = cursor.fetchone()
+                        t_db_end = time.perf_counter()
+                        db_ms = (t_db_end - t_db_start) * 1000.0
+                        
+                        if IS_DEBUG == "1" and hasattr(g, 'sqli_metrics'):
+                            g.sqli_metrics['db_ms'] = db_ms
+                            t_now = time.perf_counter()
+                            total_ms = (t_now - g.request_start_time) * 1000.0
+                            g.sqli_metrics['total_ms'] = total_ms
+                            
+                            if IS_DEBUG == "1":
+                                # Log timing breakdown to console
+                                logger.info(
+                                    "\n"
+                                    "============================================================\n"
+                                    " [TELEMETRY] ALLOWED REQUEST (ZERO-TRUST PASSED)\n"
+                                    "------------------------------------------------------------\n"
+                                    " HTTP Request Arrival   : [OK] (Net Latency: %.4f ms)\n"
+                                    " Query Pre-Filter Check : %.4f ms\n"
+                                    " ML Model Prediction    : %.4f ms\n"
+                                    " Database Query Exec    : %.4f ms\n"
+                                    "------------------------------------------------------------\n"
+                                    " Total Backend Latency  : %.4f ms\n"
+                                    " Sent Input Username    : %s\n"
+                                    " (Debugging) Username After Preprocessing : %s\n"
+                                    " Sent Input Password    : %s\n"
+                                    " (Debugging) Password After Preprocessing : %s\n"
+                                    "============================================================",
+                                    g.sqli_metrics.get("network_ms", 0.0),
+                                    g.sqli_metrics.get("pre_filter_ms", 0.0),
+                                    g.sqli_metrics.get("ml_ms", 0.0),
+                                    db_ms,
+                                    total_ms,
+                                    g.sqli_metrics.get("username_val", ""),
+                                    username_preprocessed,
+                                    g.sqli_metrics.get("password_val", ""),
+                                    password_preprocessed,
+                                )
+                        if row:
+                            session["user"] = raw_username
+                            login_ok = True
+                            flash("Login berhasil!", "success")
+                        else:
+                            flash("Username atau password salah.", "danger")
+                    finally:
+                        cursor.close()
+        except sqlite3.Error as exc:
+            flash(f"Database error: {exc}", "danger")
 
         if login_ok:
             return redirect(url_for("home"))
@@ -437,21 +436,7 @@ def protected_login():
     )
 
 
-@app.route("/blocked")
-def blocked():
-    """Halaman ditampilkan saat middleware ML memblokir request."""
-    payload = session.pop("blocked_payload", "N/A")
-    field = session.pop("blocked_field", "unknown")
-    confidence = session.pop("blocked_confidence", 0.0)
-    proba_map = session.pop("blocked_proba_map", {})
 
-    return render_template(
-        "blocked.html",
-        payload=payload,
-        field=field,
-        confidence=confidence,
-        proba_map=proba_map,
-    )
 
 
 @app.route("/home")
