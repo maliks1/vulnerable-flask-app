@@ -35,7 +35,7 @@ def login():
     INTENTIONALLY VULNERABLE login endpoint.
     
     Vulnerabilities implemented:
-    1. Error-Based SQL Injection - Raw database errors exposed
+    1. Error-Based SQL Injection - Raw database errors exposed with full details
     2. Stacked Queries - Multiple SQL statements can be executed
     3. Stored Procedure Injection - Dynamic procedure calls vulnerable
     """
@@ -231,20 +231,67 @@ def login():
                 print(f"[SQL ERROR] {exc}")
 
             # =================================================================
-            # VULNERABILITY 1: ERROR-BASED SQL INJECTION
+            # VULNERABILITY 1: ERROR-BASED SQL INJECTION (IMPROVED)
             # =================================================================
-            # Kembalikan raw error database untuk memastikan SQLMap
-            # dapat mendeteksi error-based SQL injection
-            error_msg = str(exc)
-            if IS_DEBUG == "1":
-                print(f"[SQLI ERROR-BASED] {error_msg}")
+            # Kembalikan raw error database dengan format yang sangat jelas
+            # untuk memastikan SQLMap dapat mendeteksi error-based SQL injection
             
-            # Format error yang jelas dan mudah dideteksi scanner
-            # Include query in response for easier debugging/exploitation
-            error_response = (
-                f"Database Error: {error_msg}\n"
-                f"Query: {executed_query}"
-            )
+            error_code = exc.args[0] if exc.args else 'Unknown'
+            error_msg = str(exc)
+            
+            if IS_DEBUG == "1":
+                print(f"[SQLI ERROR-BASED] Code: {error_code}, Message: {error_msg}")
+            
+            # Format error response yang SANGAT EXPLICIT untuk scanner
+            # Include semua informasi debugging yang mungkin dibutuhkan attacker
+            error_details = {
+                'error_code': error_code,
+                'error_message': error_msg,
+                'error_type': type(exc).__name__,
+                'executed_query': executed_query,
+                'input_username': raw_username,
+                'input_password': raw_password,
+                'mysql_error_number': getattr(exc, 'errno', 'N/A'),
+                'mysql_sqlstate': getattr(exc, 'sqlstate', 'N/A')
+            }
+            
+            # Build detailed error response
+            error_response_lines = [
+                "=" * 80,
+                "MYSQL DATABASE ERROR - DEBUG MODE ENABLED",
+                "=" * 80,
+                f"Error Code: {error_code}",
+                f"MySQL Error Number: {error_details['mysql_error_number']}",
+                f"MySQL SQLState: {error_details['mysql_sqlstate']}",
+                f"Error Type: {error_details['error_type']}",
+                "",
+                "ERROR MESSAGE:",
+                "-" * 80,
+                error_msg,
+                "",
+                "EXECUTED QUERY:",
+                "-" * 80,
+                executed_query if executed_query else "N/A",
+                "",
+                "INPUT PARAMETERS:",
+                "-" * 80,
+                f"Username: {repr(raw_username)}",
+                f"Password: {repr(raw_password)}",
+                "",
+                "STACK TRACE:",
+                "-" * 80,
+            ]
+            
+            # Add traceback information
+            import traceback
+            tb_lines = traceback.format_exc().split('\n')
+            error_response_lines.extend(tb_lines[:10])  # First 10 lines of traceback
+            
+            error_response_lines.append("=" * 80)
+            
+            error_response = '\n'.join(error_response_lines)
+            
+            # Return dengan content-type text/plain agar mudah dibaca scanner
             return error_response, 500
             # =================================================================
 
