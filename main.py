@@ -1,5 +1,5 @@
 ﻿from flask import Flask, render_template, request, redirect, url_for, flash, session
-import sqlite3
+import pymysql
 import subprocess
 import sys
 import os
@@ -109,7 +109,7 @@ def login():
                             flash('Login gagal: username/password tidak valid.', 'danger')
                     finally:
                         cursor.close()
-        except sqlite3.Error as exc:
+        except pymysql.Error as exc:
             auth_status = 'error'
             sql_error_message = str(exc)
             if IS_DEBUG == "1":

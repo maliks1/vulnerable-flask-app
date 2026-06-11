@@ -1,20 +1,27 @@
 ﻿import os
-import sqlite3
+import pymysql
 import logging
 
 from config import IS_DEBUG
+from mysql_config import MYSQL_CONFIG
 
 logger = logging.getLogger("utils")
 
-DB_PATH = "users.db"
+# DB_PATH = "users.db"  # SQLite path (kept for reference)
 
-def sql_connect(db_path: str = DB_PATH) -> sqlite3.Connection | None:
+def sql_connect() -> pymysql.connections.Connection | None:
     """
-    Establish a connection to the SQLite database.
+    Establish a connection to the MySQL database.
     """
     try:
-        return sqlite3.connect(db_path)
-    except sqlite3.Error as err:
+        return pymysql.connect(
+            host=MYSQL_CONFIG['host'],
+            port=MYSQL_CONFIG['port'],
+            user=MYSQL_CONFIG['user'],
+            password=MYSQL_CONFIG['password'],
+            database=MYSQL_CONFIG['database']
+        )
+    except pymysql.Error as err:
         if IS_DEBUG == "1":
             logger.error("DB connection error: %s", err)
             print(f"[DB ERROR] {err}")
@@ -23,12 +30,12 @@ def sql_connect(db_path: str = DB_PATH) -> sqlite3.Connection | None:
 from contextlib import contextmanager
 
 @contextmanager
-def db_session(db_path: str = DB_PATH):
+def db_session():
     """
-    Context manager untuk koneksi database SQLite.
+    Context manager untuk koneksi database MySQL.
     Menjamin koneksi ditutup secara otomatis saat keluar dari block 'with'.
     """
-    conn = sql_connect(db_path)
+    conn = sql_connect()
     try:
         yield conn
     finally:

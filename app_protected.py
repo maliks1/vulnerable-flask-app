@@ -16,11 +16,11 @@ Routes
 from __future__ import annotations
 
 import logging
-import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import os
+import signal
 
 from flask import (
     Flask,
@@ -34,6 +34,7 @@ from flask import (
     abort,
     g
 )
+import pymysql
 
 # Import helper functions from centralized utils module
 from config import IS_DEBUG
@@ -55,7 +56,56 @@ logger = logging.getLogger("app_protected")
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "protected-app-secret-key-2024")
 
+class SQLiLatencyTracker:
+    """
+    Class untuk melacak dan menghitung rata-rata latensi pemrosesan query SQLi.
+
+    Attributes:
+        total_latency_ms (float): Total akumulasi latensi dalam milidetik
+        detection_count (int): Jumlah deteksi SQLi yang telah terjadi
+        start_time (float): Waktu mulai pelacakan (epoch)
+    """
+
+    def __init__(self):
+        self.total_latency_ms = 0.0
+        self.detection_count = 0
+        self.start_time = time.time()
+
+    def add_latency(self, latency_ms: float) -> None:
+        """Menambahkan latensi dari satu deteksi SQLi ke penghitungan."""
+        self.total_latency_ms += latency_ms
+        self.detection_count += 1
+
+    def get_average_latency(self) -> float:
+        """Menghitung rata-rata latensi dalam milidetik."""
+        if self.detection_count == 0:
+            return 0.0
+        return self.total_latency_ms / self.detection_count
+
+    def get_summary(self) -> str:
+        """Mengembalikan string ringkasan dalam format yang ditentukan."""
+        avg = self.get_average_latency()
+        runtime_seconds = time.time() - self.start_time
+        runtime_formatted = str(timedelta(seconds=int(runtime_seconds)))
+        return f"Rata-rata latensi SQLi: {avg:.2f} ms (dari {self.detection_count} deteksi) - Runtime: {runtime_formatted}"
+
 MODEL_PATH = "model_sqli_nb.pkl"
+
+# Initialize SQLi latency tracker
+sqli_latency_tracker = SQLiLatencyTracker()
+
+def shutdown_handler(signum, frame) -> None:
+    """Handler untuk sinyal shutdown (Ctrl+C)."""
+    logger.info("Shutdown signal received, writing SQLi latency log...")
+    summary = sqli_latency_tracker.get_summary()
+    write_latency_log(summary)
+    # Re-raise the signal to allow normal shutdown
+    signal.signal(signum, signal.SIG_DFL)
+    os.kill(os.getpid(), signum)
+
+# Set up signal handlers
+signal.signal(signal.SIGINT, shutdown_handler)
+signal.signal(signal.SIGTERM, shutdown_handler)
 
 # Muat model sekali saat startup - error langsung terlihat
 try:
@@ -66,11 +116,9 @@ except Exception as exc:
     logger.error("Gagal memuat model: %s", exc)
     raise
 
-
 @app.context_processor
 def inject_debug_flag():
     return {"IS_DEBUG": IS_DEBUG}
-
 
 # ---------------------------------------------------------------------------
 # Simulasi query rentan (untuk halaman /compare)
@@ -108,7 +156,7 @@ def run_vulnerable_simulation(username: str, password: str) -> tuple[str, list[d
                 else:
                     conn.commit()
                     entry["rowcount"] = cursor.rowcount
-            except sqlite3.Error as exc:
+            except pymysql.Error as exc:
                 entry["error"] = str(exc)
             results.append(entry)
     finally:
@@ -117,7 +165,6 @@ def run_vulnerable_simulation(username: str, password: str) -> tuple[str, list[d
 
     return login_query, results
 
-
 def check_vuln_bypass(results: list[dict]) -> bool:
     """True jika ada SELECT yang mengembalikan baris (login bypass)."""
     first_select = next(
@@ -125,7 +172,6 @@ def check_vuln_bypass(results: list[dict]) -> bool:
         None,
     )
     return bool(first_select and first_select["rows"])
-
 
 def classify_verdict(
     ml_blocked: bool, vuln_bypass: bool, vuln_results: list[dict]
@@ -178,7 +224,6 @@ def classify_verdict(
         "color": "hdr-green",
     }
 
-
 # ---------------------------------------------------------------------------
 # Middleware: before_request SQLi guard
 # ---------------------------------------------------------------------------
@@ -189,7 +234,7 @@ def init_request_timing():
 
     g.request_start_time = time.perf_counter()
     g.request_start_epoch = time.time()
-    
+
     # Client send time (in ms since epoch)
     client_time_ms = request.form.get("_client_sent_time") or request.headers.get("X-Client-Sent-Time")
     g.client_sent_time = None
@@ -203,7 +248,7 @@ def init_request_timing():
                 g.network_ms = network_diff * 1000.0
         except Exception:
             pass
-            
+
     g.sqli_metrics = {
         "network_ms": g.network_ms,
         "pre_filter_ms": 0.0,
@@ -264,6 +309,11 @@ def ml_sqli_guard() -> None:
                 g.sqli_metrics["decision_ms"] = decision_ms
                 g.sqli_metrics["total_ms"] = decision_ms
 
+            # Record latency for SQLi detection
+            if hasattr(g, 'request_start_time'):
+                total_latency_ms = (time.perf_counter() - g.request_start_time) * 1000.0
+                sqli_latency_tracker.add_latency(total_latency_ms)
+
             if IS_DEBUG == "1":
                 logger.warning(
                     "[FORNSIC] time=%s ip=%s field=%s confidence=%.6f payload=%r proba=%s",
@@ -316,7 +366,6 @@ def ml_sqli_guard() -> None:
             # Kembalikan HTTP 403 Forbidden sebagai aksi blok
             abort(403)
 
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -324,7 +373,6 @@ def ml_sqli_guard() -> None:
 @app.route("/")
 def index():
     return redirect(url_for("protected_login"))
-
 
 @app.route("/protected-login", methods=["GET", "POST"])
 def protected_login():
@@ -350,7 +398,7 @@ def protected_login():
             label, confidence, proba_map = detector.predict(raw_username)
             t_ml_end = time.perf_counter()
             ml_ms = (t_ml_end - t_ml_start) * 1000.0
-            
+
             if IS_DEBUG == "1" and hasattr(g, 'sqli_metrics'):
                 g.sqli_metrics['ml_ms'] = ml_ms
                 g.sqli_metrics['decision_ms'] = (t_ml_end - g.request_start_time) * 1000.0
@@ -379,13 +427,13 @@ def protected_login():
                         row = cursor.fetchone()
                         t_db_end = time.perf_counter()
                         db_ms = (t_db_end - t_db_start) * 1000.0
-                        
+
                         if IS_DEBUG == "1" and hasattr(g, 'sqli_metrics'):
                             g.sqli_metrics['db_ms'] = db_ms
                             t_now = time.perf_counter()
                             total_ms = (t_now - g.request_start_time) * 1000.0
                             g.sqli_metrics['total_ms'] = total_ms
-                            
+
                             if IS_DEBUG == "1":
                                 # Log timing breakdown to console
                                 logger.info(
@@ -422,7 +470,7 @@ def protected_login():
                             flash("Username atau password salah.", "danger")
                     finally:
                         cursor.close()
-        except sqlite3.Error as exc:
+        except pymysql.Error as exc:
             flash(f"Database error: {exc}", "danger")
 
         if login_ok:
@@ -435,10 +483,6 @@ def protected_login():
         raw_password=raw_password,
     )
 
-
-
-
-
 @app.route("/home")
 def home():
     if "user" not in session:
@@ -446,7 +490,6 @@ def home():
         return redirect(url_for("protected_login"))
     username = session["user"]
     return render_template("home.html", username=username)
-
 
 @app.route("/compare", methods=["GET", "POST"])
 def compare():
@@ -463,7 +506,7 @@ def compare():
 
         # Catat waktu awal request simulasi
         t_req_start = time.perf_counter()
-        
+
         # Prediksi ML
         try:
             t_ml_start = time.perf_counter()
@@ -484,7 +527,7 @@ def compare():
         vuln_query, vuln_results = run_vulnerable_simulation(username, password)
         t_sql_end = time.perf_counter()
         sql_total_ms = (t_sql_end - t_sql_start) * 1000.0
-        
+
         vuln_bypass = check_vuln_bypass(vuln_results)
 
         # Verdict
@@ -514,7 +557,6 @@ def compare():
 
     return render_template("compare.html", result=result, IS_DEBUG=IS_DEBUG)
 
-
 @app.route("/api/predict", methods=["POST"])
 def api_predict():
     """
@@ -542,13 +584,11 @@ def api_predict():
         }
     )
 
-
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     flash("Anda telah logout.", "info")
     return redirect(url_for("protected_login"))
-
 
 # Custom 403 Forbidden Error Handler
 @app.errorhandler(403)
@@ -563,6 +603,22 @@ def forbidden_error(error):
             metrics['total_ms'] = decision_ms
     return render_template('403.html', metrics=metrics, IS_DEBUG=IS_DEBUG), 403
 
+def write_latency_log(summary: str) -> None:
+    """Fungsi untuk menulis log ke file."""
+    log_dir = "logs"
+    log_file = os.path.join(log_dir, "sqli_latency.log")
+
+    # Create logs directory if it doesn't exist
+    os.makedirs(log_dir, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}] {summary}\n"
+
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+
+    logger.info("SQLi latency log written: %s", summary)
 
 if __name__ == "__main__":
+
     app.run(debug=(IS_DEBUG == "1"), host="0.0.0.0", port=5002)
