@@ -23,13 +23,11 @@ def home():
     username = session['user']
     return render_template('vulnerable_home.html', username=username)
 
-
 @app.route('/logout', methods=['POST'])
 def logout():
     session.clear()
     flash('Anda telah logout.', 'info')
     return redirect(url_for('login'))
-
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -71,15 +69,25 @@ def login():
                         query_columns = [d[0] for d in (cursor.description or [])]
                         first_row = cursor.fetchone()
 
-                        # === UPDATE UNTUK STACKED QUERIES ===
-                        # Menguras sisa kueri rangkap dari SQLMap agar driver tidak out-of-sync
+                        # === FULLY VULNERABLE TO STACKED QUERIES & STORED PROCEDURES ===
+                        # Remove draining logic to allow all stacked queries and stored procedures to execute
+                        # Execute all statements in the query (including stacked queries and stored procedures)
                         try:
-                            while cursor.nextset():
-                                pass
-                            conn.commit()  # Pastikan efek modifikasi data (DROP/INSERT) benar-benar masuk ke DB
-                        except Exception:
+                            while True:
+                                # Fetch next result set (for stacked queries and stored procedures)
+                                if not cursor.nextset():
+                                    break
+                                # Fetch any results from the additional statements to prevent errors
+                                try:
+                                    cursor.fetchall()
+                                except:
+                                    pass  # Ignore errors from statements without result sets
+                        except pymysql.Error:
+                            # Ignore "no more result sets" errors - this is expected for stacked queries
                             pass
-                        # ====================================
+
+                        conn.commit()  # Commit all statements without draining
+                        # ==============================================================
 
                         if first_row:
                             auth_status = 'success'
@@ -106,12 +114,16 @@ def login():
             sql_error_message = str(exc)
             if IS_DEBUG == "1":
                 print(f"[SQL ERROR] {exc}")
-            
-            # === UPDATE UNTUK ERROR-BASED (ILLEGAL QUERY) ===
-            # Langsung potong jalur dan kembalikan raw error teks dengan status 500 
-            # supaya regex pemindai SQLMap langsung mendeteksi celah Error-Based.
-            return f"Internal Server Error - Database Error: {str(exc)}", 500
-            # ================================================
+
+            # === ERROR-BASED SQLi VULNERABILITY ===
+            # Kembalikan raw error database untuk memastikan SQLMap
+            # dapat mendeteksi error-based SQL injection
+            error_msg = str(exc)
+            if IS_DEBUG == "1":
+                print(f"[SQLI ERROR-BASED] {error_msg}")
+            # Format error yang jelas dan mudah dideteksi scanner
+            return f"Database Error: {error_msg}", 500
+            # ====================================
 
     return render_template(
         'login.html',
@@ -124,7 +136,6 @@ def login():
         raw_username      = raw_username,
         raw_password      = raw_password,
     )
-
 
 # ---------------------------------------------------------------------------
 # Entry Point

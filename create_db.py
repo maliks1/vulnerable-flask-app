@@ -73,11 +73,25 @@ def initialize_database():
             DUMMY_USERS
         )
 
+        # Create stored procedure for SQL injection testing
+        try:
+            cursor.execute("""
+            DROP PROCEDURE IF EXISTS test_procedure
+            """)
+            cursor.execute("""
+            CREATE PROCEDURE test_procedure()
+            BEGIN
+                SELECT 'Stored procedure executed successfully! This can be exploited via SQL injection.';
+            END
+            """)
+            print('Stored procedure "test_procedure" created successfully.')
+        except pymysql.Error as err:
+            print(f'Error creating stored procedure: {err}')
+
         conn.commit()
         cursor.close()
         print(f'MySQL database initialized successfully')
         print(f'Dummy users seeded: {len(DUMMY_USERS)} entries (INSERT IGNORE).')
-
 
 if __name__ == '__main__':
     initialize_database()

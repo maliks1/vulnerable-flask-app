@@ -96,11 +96,12 @@ sqli_latency_tracker = SQLiLatencyTracker()
 
 def shutdown_handler(signum, frame) -> None:
     """Handler untuk sinyal shutdown (Ctrl+C)."""
+    # Unregister handler first to prevent duplicate calls
+    signal.signal(signum, signal.SIG_DFL)
     logger.info("Shutdown signal received, writing SQLi latency log...")
     summary = sqli_latency_tracker.get_summary()
     write_latency_log(summary)
     # Re-raise the signal to allow normal shutdown
-    signal.signal(signum, signal.SIG_DFL)
     os.kill(os.getpid(), signum)
 
 # Set up signal handlers
