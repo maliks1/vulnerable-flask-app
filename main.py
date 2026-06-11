@@ -33,6 +33,11 @@ def logout():
 def login():
     """
     INTENTIONALLY VULNERABLE login endpoint.
+    
+    Vulnerabilities implemented:
+    1. Error-Based SQL Injection - Raw database errors exposed
+    2. Stacked Queries - Multiple SQL statements can be executed
+    3. Stored Procedure Injection - Dynamic procedure calls vulnerable
     """
     executed_query     = None
     auth_status        = 'idle'
@@ -47,83 +52,201 @@ def login():
         raw_username = request.form.get('username', '')
         raw_password = request.form.get('password', '')
 
-        # Build the VULNERABLE login query
+        # ===================================================================
+        # VULNERABILITY 1 & 2: Error-Based + Stacked Queries SQL Injection
+        # ===================================================================
+        # Build the VULNERABLE login query with string concatenation
+        # This allows both error-based extraction and stacked queries
         login_query = (
             f"SELECT * FROM users "
             f"WHERE username = '{raw_username}' AND password = '{raw_password}'"
         )
         executed_query = login_query
 
-        # Execute vulnerable query directly (single execute path)
+        # Execute vulnerable query directly
         try:
             with db_session() as conn:
                 if conn is None:
                     auth_status = 'error'
                     sql_error_message = 'Database connection failed.'
                 else:
-                    cursor = conn.cursor()
+                    # Use cursor that supports multiple statements for stacked queries
+                    cursor = conn.cursor(pymysql.cursors.DictCursor)
+                    
                     try:
                         if IS_DEBUG == "1":
                             print(f"[SQLI EXEC] {login_query}")
-                        cursor.execute(login_query)
-                        query_columns = [d[0] for d in (cursor.description or [])]
-                        first_row = cursor.fetchone()
-
-                        # === FULLY VULNERABLE TO STACKED QUERIES & STORED PROCEDURES ===
-                        # Remove draining logic to allow all stacked queries and stored procedures to execute
-                        # Execute all statements in the query (including stacked queries and stored procedures)
-                        try:
-                            while True:
-                                # Fetch next result set (for stacked queries and stored procedures)
-                                if not cursor.nextset():
-                                    break
-                                # Fetch any results from the additional statements to prevent errors
+                        
+                        # ================================================================
+                        # VULNERABILITY 2: STACKED QUERIES SQL INJECTION
+                        # ================================================================
+                        # Enable multi-statement execution by using executescript or 
+                        # executing multiple statements separated by semicolons
+                        # PyMySQL doesn't have direct multi=True like mysql-connector,
+                        # but we can achieve this by splitting and executing manually
+                        
+                        # Check if query contains stacked queries (semicolon-separated)
+                        if ';' in login_query and login_query.strip().endswith(';'):
+                            # Split into multiple statements for stacked query execution
+                            statements = [stmt.strip() for stmt in login_query.split(';') if stmt.strip()]
+                            
+                            first_row = None
+                            all_results = []
+                            
+                            for idx, stmt in enumerate(statements):
                                 try:
-                                    cursor.fetchall()
-                                except:
-                                    pass  # Ignore errors from statements without result sets
-                        except pymysql.Error:
-                            # Ignore "no more result sets" errors - this is expected for stacked queries
-                            pass
+                                    if IS_DEBUG == "1":
+                                        print(f"[STACKED QUERY {idx+1}] {stmt}")
+                                    
+                                    cursor.execute(stmt)
+                                    
+                                    # Fetch results if available
+                                    if cursor.description:
+                                        result_set = cursor.fetchall()
+                                        all_results.append({
+                                            'statement': stmt,
+                                            'rows': result_set,
+                                            'columns': [d[0] for d in cursor.description]
+                                        })
+                                        
+                                        # Keep first result for authentication check
+                                        if idx == 0 and result_set:
+                                            first_row = result_set[0]
+                                            query_columns = [d[0] for d in cursor.description]
+                                except pymysql.Error as stmt_err:
+                                    if IS_DEBUG == "1":
+                                        print(f"[STACKED ERROR {idx+1}] {stmt_err}")
+                                    # Continue executing remaining statements
+                                    pass
+                            
+                            # Use first result for authentication
+                            query_rows = [first_row] if first_row else []
+                            
+                        else:
+                            # ============================================================
+                            # VULNERABILITY 3: STORED PROCEDURE INJECTION
+                            # ============================================================
+                            # Check if input attempts to call stored procedures
+                            # This simulates vulnerability where user input can trigger
+                            # stored procedure execution with unsanitized parameters
+                            
+                            # Detect stored procedure calls in input
+                            sp_keywords = ['CALL ', 'EXEC ', 'EXECUTE ']
+                            is_sp_attempt = any(keyword in raw_username.upper() or keyword in raw_password.upper() 
+                                              for keyword in sp_keywords)
+                            
+                            if is_sp_attempt:
+                                if IS_DEBUG == "1":
+                                    print("[STORED PROCEDURE] Detected SP attempt")
+                                
+                                # Attempt to execute as stored procedure call
+                                # This is vulnerable because we're executing user input directly
+                                try:
+                                    # Try to extract and execute stored procedure
+                                    # Example payload: admin'; CALL GetUserOrders(1)--
+                                    clean_query = login_query.replace('--', '').replace('#', '')
+                                    
+                                    # Look for CALL statements
+                                    if 'CALL' in clean_query.upper():
+                                        # Extract and execute the CALL statement
+                                        call_start = clean_query.upper().find('CALL')
+                                        if call_start != -1:
+                                            call_stmt = clean_query[call_start:].split(';')[0].strip()
+                                            if IS_DEBUG == "1":
+                                                print(f"[SP EXEC] Executing: {call_stmt}")
+                                            
+                                            # Execute the stored procedure call
+                                            cursor.execute(call_stmt)
+                                            
+                                            # Fetch results from stored procedure
+                                            if cursor.description:
+                                                sp_results = cursor.fetchall()
+                                                query_columns = [d[0] for d in cursor.description]
+                                                query_rows = [list(row.values()) for row in sp_results] if sp_results else []
+                                                
+                                                # If SP returns user data, use it for auth
+                                                if sp_results:
+                                                    first_row = sp_results[0]
+                                                    if isinstance(first_row, dict):
+                                                        first_row = list(first_row.values())
+                                                    
+                                                    if 'username' in query_columns:
+                                                        db_username = first_row[query_columns.index('username')]
+                                                    elif len(first_row) > 1:
+                                                        db_username = first_row[1]
+                                                    else:
+                                                        db_username = first_row[0]
+                                                    
+                                                    db_username = str(db_username)
+                                                    session['user'] = db_username
+                                                    flash(f'Login berhasil via SP! Welcome, {db_username}', 'success')
+                                                    return redirect(url_for('home'))
+                                except pymysql.Error as sp_err:
+                                    if IS_DEBUG == "1":
+                                        print(f"[SP ERROR] {sp_err}")
+                                    # Fall through to normal query execution
+                            
+                            # Normal single query execution (still vulnerable to error-based)
+                            cursor.execute(login_query)
+                            query_columns = [d[0] for d in (cursor.description or [])]
+                            first_row = cursor.fetchone()
+                            query_rows = [list(first_row.values())] if first_row and isinstance(first_row, dict) else [list(first_row)] if first_row else []
+                        
+                        conn.commit()
 
-                        conn.commit()  # Commit all statements without draining
-                        # ==============================================================
-
-                        if first_row:
+                        # Authentication check (only if not already authenticated via SP)
+                        if 'user' not in session and first_row:
                             auth_status = 'success'
-                            query_rows = [list(first_row)]
-
-                            if 'username' in query_columns:
-                                db_username = first_row[query_columns.index('username')]
-                            elif len(first_row) > 1:
-                                db_username = first_row[1]
+                            
+                            if isinstance(first_row, dict):
+                                if 'username' in first_row:
+                                    db_username = first_row['username']
+                                elif len(first_row) > 1:
+                                    db_username = list(first_row.values())[1]
+                                else:
+                                    db_username = list(first_row.values())[0]
                             else:
-                                db_username = first_row[0]
+                                if 'username' in query_columns:
+                                    db_username = first_row[query_columns.index('username')]
+                                elif len(first_row) > 1:
+                                    db_username = first_row[1]
+                                else:
+                                    db_username = first_row[0]
 
                             db_username = str(db_username)
                             session['user'] = db_username
                             flash(f'Login berhasil! Welcome, {db_username}', 'success')
                             return redirect(url_for('home'))
-                        else:
+                        elif 'user' not in session:
                             auth_status = 'failed'
                             flash('Login gagal: username/password tidak valid.', 'danger')
+                            
                     finally:
                         cursor.close()
+                        
         except pymysql.Error as exc:
             auth_status = 'error'
             sql_error_message = str(exc)
             if IS_DEBUG == "1":
                 print(f"[SQL ERROR] {exc}")
 
-            # === ERROR-BASED SQLi VULNERABILITY ===
+            # =================================================================
+            # VULNERABILITY 1: ERROR-BASED SQL INJECTION
+            # =================================================================
             # Kembalikan raw error database untuk memastikan SQLMap
             # dapat mendeteksi error-based SQL injection
             error_msg = str(exc)
             if IS_DEBUG == "1":
                 print(f"[SQLI ERROR-BASED] {error_msg}")
+            
             # Format error yang jelas dan mudah dideteksi scanner
-            return f"Database Error: {error_msg}", 500
-            # ====================================
+            # Include query in response for easier debugging/exploitation
+            error_response = (
+                f"Database Error: {error_msg}\n"
+                f"Query: {executed_query}"
+            )
+            return error_response, 500
+            # =================================================================
 
     return render_template(
         'login.html',
