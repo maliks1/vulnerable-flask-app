@@ -421,8 +421,8 @@ def protected_login():
                     try:
                         t_db_start = time.perf_counter()
                         cursor.execute(
-                            "SELECT id FROM users WHERE username = ? AND password = ?",
-                            (raw_username, raw_password),
+                            "SELECT id FROM users WHERE username = %s AND password = %s",
+                            (raw_username, raw_password)
                         )
                         row = cursor.fetchone()
                         t_db_end = time.perf_counter()

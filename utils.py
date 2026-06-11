@@ -19,7 +19,9 @@ def sql_connect() -> pymysql.connections.Connection | None:
             port=MYSQL_CONFIG['port'],
             user=MYSQL_CONFIG['user'],
             password=MYSQL_CONFIG['password'],
-            database=MYSQL_CONFIG['database']
+            database=MYSQL_CONFIG['database'],
+            # TAMBAHAN: Izinkan eksekusi multi-statement untuk simulasi Stacked Queries
+            client_flag=pymysql.constants.CLIENT.MULTI_STATEMENTS
         )
     except pymysql.Error as err:
         if IS_DEBUG == "1":

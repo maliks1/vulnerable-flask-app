@@ -35,22 +35,6 @@ def logout():
 def login():
     """
     INTENTIONALLY VULNERABLE login endpoint.
-
-    The username and password are injected into a pre-built SQL query
-    via Python f-string (no parameterization, no escaping), making it
-    vulnerable to every classic SQL injection technique:
-
-      Technique            | Example payload (in username field)
-      ---------------------|----------------------------------------------------
-      Classic bypass       | ' OR '1'='1' --
-      Comment bypass       | admin' --
-      Union-based          | ' UNION SELECT 1,username,password FROM users --
-      Error-based          | ' AND 1=CAST('x' AS INTEGER) --
-      Boolean blind        | ' AND substr(password,1,1)='a' --
-      Time-based blind     | ' AND 1=(SELECT CASE WHEN (1=1)
-                           |   THEN randomblob(100000000) ELSE 0 END) --
-      Stacked queries      | '; INSERT INTO users VALUES(99,'hacker','pwned') --
-      Schema enumeration   | ' UNION SELECT name,sql FROM sqlite_master --
     """
     executed_query     = None
     auth_status        = 'idle'
@@ -66,8 +50,6 @@ def login():
         raw_password = request.form.get('password', '')
 
         # Build the VULNERABLE login query
-        # Intentionally uses f-string concatenation instead of ? placeholders.
-        # This is the root cause of ALL injection vulnerabilities below.
         login_query = (
             f"SELECT * FROM users "
             f"WHERE username = '{raw_username}' AND password = '{raw_password}'"
@@ -88,6 +70,16 @@ def login():
                         cursor.execute(login_query)
                         query_columns = [d[0] for d in (cursor.description or [])]
                         first_row = cursor.fetchone()
+
+                        # === UPDATE UNTUK STACKED QUERIES ===
+                        # Menguras sisa kueri rangkap dari SQLMap agar driver tidak out-of-sync
+                        try:
+                            while cursor.nextset():
+                                pass
+                            conn.commit()  # Pastikan efek modifikasi data (DROP/INSERT) benar-benar masuk ke DB
+                        except Exception:
+                            pass
+                        # ====================================
 
                         if first_row:
                             auth_status = 'success'
@@ -114,6 +106,12 @@ def login():
             sql_error_message = str(exc)
             if IS_DEBUG == "1":
                 print(f"[SQL ERROR] {exc}")
+            
+            # === UPDATE UNTUK ERROR-BASED (ILLEGAL QUERY) ===
+            # Langsung potong jalur dan kembalikan raw error teks dengan status 500 
+            # supaya regex pemindai SQLMap langsung mendeteksi celah Error-Based.
+            return f"Internal Server Error - Database Error: {str(exc)}", 500
+            # ================================================
 
     return render_template(
         'login.html',
