@@ -172,9 +172,8 @@ python create_db.py
 
 ### Aplikasi Protected (`app_protected.py`)
 
-- GET `/` - redirect ke `/protected-login`
-- GET `/protected-login` - menampilkan form login aman
-- POST `/protected-login` - proses login aman
+- GET `/` - menampilkan form login aman (root URL)
+- POST `/` - proses login aman dengan ML guard
 - GET `/blocked` - halaman saat request diblokir middleware
 - GET `/home` - dashboard protected
 - GET `/compare` - halaman komparasi

@@ -6,9 +6,8 @@ dengan aplikasi yang dilindungi middleware ML Naive Bayes.
 
 Routes
 ------
-  GET        /                   -> redirect ke /protected-login
-  GET / POST /protected-login    -> login dengan ML SQLi guard (before_request)
-  GET        /home               -> dashboard pasca-login
+  GET / POST /             -> login dengan ML SQLi guard (before_request)
+  GET        /home         -> dashboard pasca-login
 """
 
 from __future__ import annotations
@@ -157,11 +156,11 @@ def init_request_timing():
 @app.before_request
 def ml_sqli_guard() -> None:
     """
-    Periksa setiap field form pada endpoint protected_login.
-    Jika ML mendeteksi SQLi -> simpan info ke session -> redirect ke /blocked.
+    Periksa setiap field form pada endpoint index.
+    Jika ML mendeteksi SQLi -> simpan info ke session -> abort 403.
     """
-    if request.endpoint != "protected_login" or request.method != "POST":
-        return  # hanya aktif di POST /protected-login
+    if request.endpoint != "index" or request.method != "POST":
+        return  # hanya aktif di POST /
 
     fields_to_check = [
         ("username", request.form.get("username", "")),
@@ -264,12 +263,8 @@ def ml_sqli_guard() -> None:
 # Routes
 # ---------------------------------------------------------------------------
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return redirect(url_for("protected_login"))
-
-@app.route("/protected-login", methods=["GET", "POST"])
-def protected_login():
     """
     Login yang dijaga middleware ML.
     Jika request POST sampai di sini, berarti ML sudah meloloskannya.
@@ -381,7 +376,7 @@ def protected_login():
 def home():
     if "user" not in session:
         flash("Silakan login terlebih dahulu.", "warning")
-        return redirect(url_for("protected_login"))
+        return redirect(url_for("index"))
     username = session["user"]
     return render_template("home.html", username=username)
 
@@ -389,7 +384,7 @@ def home():
 def logout():
     session.clear()
     flash("Anda telah logout.", "info")
-    return redirect(url_for("protected_login"))
+    return redirect(url_for("index"))
 
 # Custom 403 Forbidden Error Handler
 @app.errorhandler(403)
