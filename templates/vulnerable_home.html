@@ -300,11 +300,11 @@
                     </li>
                     <li class="mb-2">
                         <strong style="color: var(--text-primary);">Dampak Tautologi</strong><br/>
-                        Payload tautologi seperti `' OR '1'='1` menghasilkan kondisi `TRUE` untuk seluruh kolom, menginstruksikan SQLite me-return data baris pertama tanpa password valid.
+                        Payload tautologi seperti `' OR '1'='1` menghasilkan kondisi `TRUE` untuk seluruh kolom, menginstruksikan MySQL me-return data baris pertama tanpa password valid.
                     </li>
                     <li>
                         <strong style="color: var(--text-primary);">Mitigasi Utama</strong><br/>
-                        Gunakan parameterized kueri (placeholder `?` dengan binding argumen) di database SQLite agar input tidak pernah dieksekusi sebagai instruksi kode SQL.
+                        Gunakan parameterized kueri (placeholder `%s` dengan binding argumen) di database MySQL agar input tidak pernah dieksekusi sebagai instruksi kode SQL.
                     </li>
                 </ol>
             </div>

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import pymysql
 import logging
 import pymysql.constants.CLIENT
@@ -7,7 +7,7 @@ from mysql_config import MYSQL_CONFIG
 
 logger = logging.getLogger("utils")
 
-# DB_PATH = "users.db"  # SQLite path (kept for reference)
+# MySQL database configuration
 
 def sql_connect() -> pymysql.connections.Connection | None:
     """

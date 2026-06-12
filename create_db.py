@@ -7,7 +7,7 @@ if IS_DEBUG != "1":
     def print(*args, **kwargs):
         pass
 
-# DB_PATH = 'users.db'  # SQLite path (kept for reference)
+# MySQL database configuration is loaded from mysql_config.py
 
 DUMMY_USERS = [
     ('admin', 'admin123'),

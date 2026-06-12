@@ -115,13 +115,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 5. Inisialisasi database SQLite
+### 5. Inisialisasi database MySQL
 
 ```bash
 python create_db.py
 ```
 
-Perintah ini akan membuat atau memperbarui file `users.db` beserta data awal.
+Perintah ini akan membuat database dan tabel di MySQL serta mengisi data awal.
 
 ### 6. Jalankan aplikasi rentan
 
