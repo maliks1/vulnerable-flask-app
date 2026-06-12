@@ -642,3 +642,151 @@ code {
     stroke: currentColor;
     fill: none;
 }
+
+/* ==========================================================================
+   SQLI CHEATSHEET (THEMED — PROTECTED LOGIN PALETTE)
+   ========================================================================== */
+
+.cheat-item {
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--brand-success);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    transition: all var(--transition-smooth);
+}
+
+.cheat-item:hover {
+    border-color: var(--brand-success-glow);
+    background: rgba(16, 185, 129, 0.04);
+    box-shadow: var(--shadow-sm);
+}
+
+.theme-light .cheat-item {
+    background: var(--bg-gray-subtle);
+    border-left-color: var(--brand-success);
+}
+
+.cheat-item:last-child {
+    margin-bottom: 0;
+}
+
+.cheat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.cheat-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.cheat-meta .badge-tech {
+    background: var(--bg-success-subtle);
+    color: var(--brand-success);
+    border: 1px solid var(--brand-success-glow);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.65rem;
+    padding: 4px 10px;
+}
+
+.field-tag {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-warning-subtle);
+    color: var(--brand-warning);
+    border: 1px solid var(--brand-warning-glow);
+    text-transform: lowercase;
+}
+
+.try-btn {
+    background: var(--bg-success-subtle);
+    color: var(--brand-success);
+    border: 1px solid var(--brand-success-glow);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all var(--transition-smooth);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.try-btn::before {
+    content: '⚡';
+    font-size: 0.8rem;
+}
+
+.try-btn:hover {
+    background: var(--brand-success);
+    color: #ffffff;
+    border-color: var(--brand-success);
+    box-shadow: 0 0 0 3px var(--brand-success-glow);
+}
+
+.try-btn:active {
+    transform: translateY(1px);
+}
+
+.cheat-pre {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 10px 12px;
+    margin: 0 0 8px 0;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: var(--font-mono);
+}
+
+.cheat-pre .qs {
+    color: var(--text-muted);
+}
+
+.cheat-pre .qi {
+    color: var(--brand-danger);
+    font-weight: 600;
+    background: var(--bg-danger-subtle);
+    padding: 0 3px;
+    border-radius: 3px;
+}
+
+.cheat-pre .qi[style*="brand-warning"] {
+    color: var(--brand-warning) !important;
+    background: var(--bg-warning-subtle) !important;
+}
+
+.note-tag {
+    font-size: 0.72rem;
+    color: var(--brand-primary);
+    background: var(--bg-primary-subtle);
+    border: 1px solid var(--brand-primary-glow);
+    border-left: 3px solid var(--brand-primary);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-top: 6px;
+    font-style: italic;
+}
