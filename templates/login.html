@@ -3,11 +3,22 @@ endblock %} {% block container_style %}max-width: 820px;{% endblock %} {% block
 head_extra %}
 <style>
   .cheat-item {
-    padding: 14px 0;
-    border-bottom: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--brand-danger);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    transition: all var(--transition-smooth);
   }
-  .cheat-item:last-child {
-    border-bottom: none;
+  .cheat-item:hover {
+    border-color: var(--brand-danger-glow);
+    background: rgba(239, 68, 68, 0.04);
+    box-shadow: var(--shadow-sm);
+  }
+  .theme-light .cheat-item {
+    background: var(--bg-gray-subtle);
+    border-left-color: var(--brand-danger);
   }
   .cheat-pre {
     margin-top: 8px;
@@ -58,23 +69,26 @@ head_extra %}
   }
 
   .try-btn {
-    background: var(--bg-primary-subtle);
-    border: 1px solid var(--brand-primary-glow);
-    color: var(--brand-primary);
+    background: var(--bg-danger-subtle);
+    border: 1px solid var(--brand-danger-glow);
+    color: var(--brand-danger);
     font-size: 0.72rem;
-    font-weight: 600;
-    padding: 4px 12px;
+    font-weight: 700;
+    padding: 6px 14px;
     border-radius: 4px;
     cursor: pointer;
     transition: all var(--transition-smooth);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .try-btn:hover {
-    background: var(--brand-primary);
+    background: var(--brand-danger);
     color: white;
-    border-color: var(--brand-primary);
+    border-color: var(--brand-danger);
   }
   .field-tag {
     font-size: 0.68rem;
@@ -89,17 +103,16 @@ head_extra %}
   }
   .note-tag {
     font-size: 0.72rem;
-    color: var(--text-muted);
-    font-style: italic;
-    margin-top: 6px;
+    color: var(--brand-danger);
+    background: var(--bg-danger-subtle);
+    border: 1px solid var(--brand-danger-glow);
+    border-left: 3px solid var(--brand-danger);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-top: 8px;
     display: flex;
     align-items: center;
-    gap: 6px;
-  }
-  .note-tag::before {
-    content: "•";
-    color: var(--brand-danger);
-    font-weight: bold;
+    gap: 8px;
   }
 </style>
 {% endblock %} {% block content %}
@@ -340,7 +353,10 @@ head_extra %}
         class="cheat-pre"
       ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">{{ payload_user }}</span><span class="qs">' AND password = '</span><span class="qi" style="color: var(--brand-warning);">{{ payload_pass }}</span><span class="qs">'</span></pre>
       {% if note %}
-      <div class="note-tag">{{ note }}</div>
+      <div class="note-tag">
+        <span style="font-style: normal; font-size: 0.9rem;">💡</span>
+        <span>{{ note }}</span>
+      </div>
       {% endif %}
     </div>
     {% endfor %}
