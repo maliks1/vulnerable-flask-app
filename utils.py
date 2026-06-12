@@ -1,7 +1,7 @@
 ﻿import os
 import pymysql
 import logging
-
+import pymysql.constants.CLIENT
 from config import IS_DEBUG
 from mysql_config import MYSQL_CONFIG
 
