@@ -78,13 +78,6 @@
                 >Protected Login</a
               >
             </li>
-            <li>
-              <a
-                href="{{ url_for('compare') }}"
-                class="navbar-nav-link {% if request.path == '/compare' %}active{% endif %}"
-                >Visual Compare</a
-              >
-            </li>
             {% else %}
             <li>
               <a
@@ -98,11 +91,6 @@
                 href="http://localhost:5002/protected-login"
                 class="navbar-nav-link"
                 >Protected Mode</a
-              >
-            </li>
-            <li>
-              <a href="http://localhost:5002/compare" class="navbar-nav-link"
-                >Visual Compare</a
               >
             </li>
             {% endif %} {% if 'user' in session %}

@@ -146,12 +146,6 @@
     Kredensial Anda diinspeksi secara real-time oleh model klasifikasi <code>model_sqli_nb.pkl</code> secara <em>zero-trust</em> sebelum kueri dieksekusi ke database.
 </p>
 
-<!-- Compare notice -->
-<div class="compare-notice d-flex align-items-center justify-content-between flex-wrap gap-2">
-    <div class="font-weight-500">Ingin mengukur tingkat bypass dan menguji keandalan deteksi ML secara interaktif?</div>
-    <a href="{{ url_for('compare') }}" class="btn btn-sm btn-outline-primary font-weight-bold px-3" style="font-size: 0.75rem;">Visual Compare Lab &rarr;</a>
-</div>
-
     <!-- ML Verdict (setelah POST lolos middleware) -->
     {% if IS_DEBUG == '1' and ml_result %}
     {% if ml_result.label == 'sqli' %}
@@ -321,9 +315,6 @@
             <div class="form-group mb-4">
                 <label for="username">
                     Username
-                    {% if IS_DEBUG == '1' %}
-                    <span class="badge-ml ml-2" style="font-size: 0.65rem; padding: 2px 6px;">Live ML Monitoring</span>
-                    {% endif %}
                 </label>
                 <input
                     type="text"
@@ -334,17 +325,7 @@
                     placeholder="Masukkan username..."
                     autocomplete="off"
                     autofocus
-                    oninput="livePredict(this.value)"
                 />
-                
-                {% if IS_DEBUG == '1' %}
-                <div id="live-indicator">
-                    <span class="live-chip idle">
-                        <span class="live-dot"></span>
-                        <span id="live-status-text">Sensor Aktif</span>
-                    </span>
-                </div>
-                {% endif %}
             </div>
 
             <div class="form-group mb-4">
@@ -360,12 +341,6 @@
                 />
             </div>
 
-            {% if IS_DEBUG == '1' %}
-            <div id="submit-hint" class="alert alert-danger mb-4" style="display:none; border: 1px solid var(--brand-danger-glow); font-size: 0.82rem;">
-                <strong>Akses Ditutup:</strong> Input mengandung pola SQL Injection. Permintaan koneksi ditolak di pintu gerbang.
-            </div>
-            {% endif %}
-
             <button type="submit" class="btn btn-exec" id="submitBtn">
                 Otentikasi Aman (Zero-Trust)
             </button>
@@ -373,121 +348,20 @@
     </div>
 </div>
 
-<!-- Info: perbedaan -->
-<div class="card mb-5">
-    <div class="card-header hdr-gray">
-        <strong>Analisis Komparatif Arsitektur Keamanan</strong>
-    </div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table mb-0 text-center">
-                <thead>
-                    <tr>
-                        <th style="width: 34%">Vektor Evaluasi</th>
-                        <th style="width: 33%">Port :5001 (Vulnerable)</th>
-                        <th style="width: 33%">Port :5002 (Protected)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="color: var(--text-secondary); font-weight: 500;">Konstruksi Kueri SQL</td>
-                        <td style="color: var(--brand-danger); font-weight: 500;">Unsanitized f-string</td>
-                        <td style="color: var(--brand-success); font-weight: 500;">Pre-compiled Parameterized</td>
-                    </tr>
-                    <tr>
-                        <td style="color: var(--text-secondary); font-weight: 500;">Sistem Deteksi</td>
-                        <td style="color: var(--brand-danger); font-weight: 500;">Tidak ada proteksi</td>
-                        <td style="color: var(--brand-success); font-weight: 500;">ML Classifier Middleware</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const IS_DEBUG = {{ 'true' if IS_DEBUG == '1' else 'false' }};
-    let _debounceTimer = null;
-
-    function livePredict(value) {
-        clearTimeout(_debounceTimer);
-
-        const indicator = document.getElementById('live-indicator');
-        const submitBtn = document.getElementById('submitBtn');
-        const submitHint = document.getElementById('submit-hint');
-        const inputEl  = document.getElementById('username');
-
-        if (!IS_DEBUG || !indicator || !submitHint) {
-            return;
-        }
-
-        if (!value || !value.trim()) {
-            indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot"></span>Sensor Aktif</span>';
-            inputEl.classList.remove('field-sqli', 'field-legit');
-            submitHint.style.display = 'none';
-            submitBtn.classList.remove('btn-danger');
-            return;
-        }
-
-        indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot" style="background: var(--brand-primary);"></span>Mengevaluasi Input...</span>';
-
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm && !loginForm.dataset.debugSubmitBound) {
-            loginForm.dataset.debugSubmitBound = '1';
-            loginForm.addEventListener('submit', function() {
-                const clientTime = document.getElementById('client_sent_time');
+    document.addEventListener("DOMContentLoaded", function() {
+        var form = document.getElementById('loginForm');
+        if (form) {
+            form.addEventListener('submit', function() {
+                var clientTime = document.getElementById('client_sent_time');
                 if (clientTime) {
                     clientTime.value = Date.now();
                 }
             });
         }
-
-        _debounceTimer = setTimeout(function () {
-            fetch('/api/predict', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: value })
-            })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data.error) {
-                    indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot"></span>Sensor Offline</span>';
-                    return;
-                }
-
-                const pct = (data.confidence * 100).toFixed(1);
-                inputEl.classList.remove('field-sqli', 'field-legit');
-
-                if (data.is_sqli) {
-                    indicator.innerHTML =
-                        '<span class="live-chip sqli">' +
-                        '<span class="live-dot"></span>' +
-                        'INJECTION TERDETEKSI ' + pct + '%' +
-                        '</span>';
-                    inputEl.classList.add('field-sqli');
-                    submitHint.style.display = 'block';
-                    submitBtn.classList.add('btn-danger');
-                } else {
-                    indicator.innerHTML =
-                        '<span class="live-chip legit">' +
-                        '<span class="live-dot"></span>' +
-                        'BERSIH ' + pct + '%' +
-                        '</span>';
-                    inputEl.classList.add('field-legit');
-                    submitHint.style.display = 'none';
-                    submitBtn.classList.remove('btn-danger');
-                }
-            })
-            .catch(function () {
-                indicator.innerHTML = '<span class="live-chip idle"><span class="live-dot"></span>Socket Error</span>';
-            });
-        }, 300);
-    }
-
-    document.addEventListener("DOMContentLoaded", function() {
         document.querySelectorAll('.proba-bar[data-width]').forEach(function(el) {
             el.style.width = el.getAttribute('data-width');
             el.style.backgroundColor = el.getAttribute('data-bg');

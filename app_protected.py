@@ -9,8 +9,6 @@ Routes
   GET        /                   -> redirect ke /protected-login
   GET / POST /protected-login    -> login dengan ML SQLi guard (before_request)
   GET        /home               -> dashboard pasca-login
-  GET / POST /compare            -> halaman komparasi Vulnerable vs Protected
-  POST       /api/predict        -> JSON endpoint untuk live prediksi (AJAX)
 """
 
 from __future__ import annotations
@@ -25,7 +23,6 @@ import signal
 from flask import (
     Flask,
     flash,
-    jsonify,
     redirect,
     render_template,
     request,
@@ -38,7 +35,7 @@ import pymysql
 
 # Import helper functions from centralized utils module
 from config import IS_DEBUG
-from utils import sql_connect, parse_statements, db_session
+from utils import db_session
 from middleware import SQLiDetector, preprocess_text
 
 # ---------------------------------------------------------------------------
@@ -120,110 +117,6 @@ except Exception as exc:
 @app.context_processor
 def inject_debug_flag():
     return {"IS_DEBUG": IS_DEBUG}
-
-# ---------------------------------------------------------------------------
-# Simulasi query rentan (untuk halaman /compare)
-# ---------------------------------------------------------------------------
-def run_vulnerable_simulation(username: str, password: str) -> tuple[str, list[dict]]:
-    """
-    Jalankan query TIDAK AMAN persis seperti main.py.
-    Digunakan HANYA untuk tujuan edukatif di halaman /compare.
-    Return: (query_string, list_of_result_dicts)
-    """
-    login_query = (
-        f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-    )
-    results: list[dict] = []
-    conn = sql_connect()
-
-    if conn is None:
-        return login_query, results
-
-    cursor = conn.cursor()
-    try:
-        for stmt in parse_statements(login_query):
-            entry: dict = {
-                "stmt": stmt,
-                "columns": [],
-                "rows": [],
-                "rowcount": None,
-                "error": None,
-            }
-            try:
-                cursor.execute(stmt)
-                if cursor.description:
-                    entry["columns"] = [d[0] for d in cursor.description]
-                    entry["rows"] = [list(r) for r in cursor.fetchall()]
-                else:
-                    conn.commit()
-                    entry["rowcount"] = cursor.rowcount
-            except pymysql.Error as exc:
-                entry["error"] = str(exc)
-            results.append(entry)
-    finally:
-        cursor.close()
-        conn.close()
-
-    return login_query, results
-
-def check_vuln_bypass(results: list[dict]) -> bool:
-    """True jika ada SELECT yang mengembalikan baris (login bypass)."""
-    first_select = next(
-        (e for e in results if e["columns"] and not e["error"]),
-        None,
-    )
-    return bool(first_select and first_select["rows"])
-
-def classify_verdict(
-    ml_blocked: bool, vuln_bypass: bool, vuln_results: list[dict]
-) -> dict:
-    """
-    Hasilkan verdict edukatif berdasarkan prediksi ML vs perilaku query rentan.
-    """
-    # Deteksi apakah ada statement DML/DDL yang berhasil
-    has_dml = any(
-        e["rowcount"] is not None
-        and not e["error"]
-        and any(
-            e["stmt"].strip().upper().startswith(kw)
-            for kw in ("INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER")
-        )
-        for e in vuln_results
-    )
-    any_attack = vuln_bypass or has_dml
-
-    if ml_blocked and any_attack:
-        return {
-            "type": "true_positive",
-            "icon": "check-circle",
-            "label": "True Positive",
-            "msg": "Model benar - serangan SQLi terdeteksi dan diblokir.",
-            "color": "hdr-green",
-        }
-    if ml_blocked and not any_attack:
-        return {
-            "type": "false_positive",
-            "icon": "alert-triangle",
-            "label": "False Positive",
-            "msg": "Model salah - input sah diblokir (false alarm).",
-            "color": "hdr-yellow",
-        }
-    if not ml_blocked and any_attack:
-        return {
-            "type": "false_negative",
-            "icon": "x-circle",
-            "label": "False Negative",
-            "msg": "Model GAGAL - serangan lolos dari deteksi ML!",
-            "color": "hdr-red",
-        }
-    # not blocked, no attack
-    return {
-        "type": "true_negative",
-        "icon": "check-circle",
-        "label": "True Negative",
-        "msg": "Model benar - input sah diloloskan.",
-        "color": "hdr-green",
-    }
 
 # ---------------------------------------------------------------------------
 # Middleware: before_request SQLi guard
@@ -491,99 +384,6 @@ def home():
         return redirect(url_for("protected_login"))
     username = session["user"]
     return render_template("home.html", username=username)
-
-@app.route("/compare", methods=["GET", "POST"])
-def compare():
-    """
-    Halaman komparasi interaktif:
-      - Kolom kiri  -> simulasi app rentan (query dieksekusi langsung)
-      - Kolom kanan -> app terlindungi dengan ML middleware
-    """
-    result = None
-
-    if request.method == "POST":
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
-
-        # Catat waktu awal request simulasi
-        t_req_start = time.perf_counter()
-
-        # Prediksi ML
-        try:
-            t_ml_start = time.perf_counter()
-            ml_label, ml_confidence, ml_proba_map = detector.predict(username)
-            t_ml_end = time.perf_counter()
-            ml_total_ms = (t_ml_end - t_ml_start) * 1000.0
-        except Exception as exc:
-            ml_label = "error"
-            ml_confidence = 0.0
-            ml_proba_map = {}
-            ml_total_ms = 0.0
-            logger.error("Prediksi ML error: %s", exc)
-
-        ml_blocked = ml_label == "sqli"
-
-        # Simulasi query rentan
-        t_sql_start = time.perf_counter()
-        vuln_query, vuln_results = run_vulnerable_simulation(username, password)
-        t_sql_end = time.perf_counter()
-        sql_total_ms = (t_sql_end - t_sql_start) * 1000.0
-
-        vuln_bypass = check_vuln_bypass(vuln_results)
-
-        # Verdict
-        verdict = classify_verdict(ml_blocked, vuln_bypass, vuln_results)
-
-        result = {
-            # input
-            "username": username,
-            "password": password,
-            # ML
-            "ml_label": ml_label,
-            "ml_confidence": round(ml_confidence, 4),
-            "ml_proba_map": {k: round(v, 4) for k, v in ml_proba_map.items()},
-            "ml_blocked": ml_blocked,
-            # Vulnerable sim
-            "vuln_query": vuln_query,
-            "vuln_results": vuln_results,
-            "vuln_bypass": vuln_bypass,
-            # Verdict
-            "verdict": verdict,
-            # Telemetry comparison
-            "ml_latency_ms": round(ml_total_ms, 3),
-            "sql_latency_ms": round(sql_total_ms, 3),
-            "pre_filter_ms": round(g.sqli_metrics.get("pre_filter_ms", 0.0), 3) if hasattr(g, 'sqli_metrics') else 0.0,
-            "ml_model_ms": round(g.sqli_metrics.get("ml_ms", 0.0), 3) if hasattr(g, 'sqli_metrics') else 0.0,
-        }
-
-    return render_template("compare.html", result=result, IS_DEBUG=IS_DEBUG)
-
-@app.route("/api/predict", methods=["POST"])
-def api_predict():
-    """
-    JSON endpoint untuk live prediksi saat mengetik.
-    """
-    data = request.get_json(silent=True) or {}
-    text = data.get("text", "")
-
-    if not text:
-        return jsonify({"error": "Field 'text' wajib diisi."}), 400
-
-    try:
-        label, confidence, proba_map = detector.predict(text)
-    except Exception as exc:
-        if IS_DEBUG == "1":
-            logger.error("/api/predict error: %s", exc)
-        return jsonify({"error": str(exc)}), 500
-
-    return jsonify(
-        {
-            "label": label,
-            "confidence": round(confidence, 6),
-            "is_sqli": label == "sqli",
-            "proba_map": {k: round(v, 6) for k, v in proba_map.items()},
-        }
-    )
 
 @app.route("/logout", methods=["POST"])
 def logout():
