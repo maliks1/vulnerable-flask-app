@@ -96,38 +96,21 @@ def login():
 
                         first_row = None
 
-                        # VULN: Stacked queries - cek input mentah, bukan query akhir
-                        if ";" in raw_username or ";" in raw_password:
-                            stmts = [
-                                s.strip() for s in login_query.split(";") if s.strip()
-                            ]
-                            for idx, stmt in enumerate(stmts):
+                        # VULN: Stored procedure injection
+                        sp_kw = ["CALL ", "EXEC ", "EXECUTE "]
+                        is_sp = any(
+                            k in raw_username.upper() or k in raw_password.upper()
+                            for k in sp_kw
+                        )
+                        if is_sp:
+                            if IS_DEBUG == "1":
+                                print("[STORED PROCEDURE] Detected SP attempt")
+                            clean = login_query.replace("--", "").replace("#", "")
+                            if "CALL" in clean.upper():
+                                cs = clean.upper().find("CALL")
+                                # FIX: Bersihkan sisa potongan SQL agar tidak Syntax Error
+                                call_stmt = clean[cs:].split(";")[0].split("'")[0].strip()
                                 try:
-                                    cursor.execute(stmt)
-                                    if cursor.description:
-                                        rs = cursor.fetchall()
-                                        if idx == 0 and rs:
-                                            first_row = rs[0]
-                                            query_columns = [
-                                                d[0] for d in cursor.description
-                                            ]
-                                except pymysql.Error:
-                                    pass
-                            query_rows = [first_row] if first_row else []
-                        else:
-                            # VULN: Stored procedure injection
-                            sp_kw = ["CALL ", "EXEC ", "EXECUTE "]
-                            is_sp = any(
-                                k in raw_username.upper() or k in raw_password.upper()
-                                for k in sp_kw
-                            )
-                            if is_sp:
-                                if IS_DEBUG == "1":
-                                    print("[STORED PROCEDURE] Detected SP attempt")
-                                clean = login_query.replace("--", "").replace("#", "")
-                                if "CALL" in clean.upper():
-                                    cs = clean.upper().find("CALL")
-                                    call_stmt = clean[cs:].split(";")[0].strip()
                                     cursor.execute(call_stmt)
                                     if cursor.description:
                                         sp_rs = cursor.fetchall()
@@ -157,17 +140,35 @@ def login():
                                                 "success",
                                             )
                                             return redirect(url_for("home"))
+                                except pymysql.Error:
+                                    # FIX: Tangani error SP secara lokal agar tidak membatalkan request
+                                    pass 
 
-                            cursor.execute(login_query)
-                            query_columns = [d[0] for d in (cursor.description or [])]
-                            first_row = cursor.fetchone()
-                            query_rows = (
-                                [list(first_row.values())]
-                                if first_row and isinstance(first_row, dict)
-                                else [list(first_row)]
-                                if first_row
-                                else []
-                            )
+                        # FIX: Eksekusi Native untuk Stacked Queries & Time-Based
+                        # Mengganti split(";") manual dengan nextset() agar sqlmap melihat hasil query kedua
+                        cursor.execute(login_query)
+                        
+                        if cursor.description:
+                            rs = cursor.fetchall()
+                            if rs:
+                                first_row = rs[0]
+                                query_columns = [d[0] for d in cursor.description]
+                        
+                        # Ambil hasil query stacked (jika ada)
+                        while cursor.nextset():
+                            if cursor.description:
+                                rs = cursor.fetchall()
+                                if rs and not first_row:
+                                    first_row = rs[0]
+                                    query_columns = [d[0] for d in cursor.description]
+
+                        query_rows = (
+                            [list(first_row.values())]
+                            if first_row and isinstance(first_row, dict)
+                            else [list(first_row)]
+                            if first_row
+                            else []
+                        )
 
                         conn.commit()
 
@@ -202,11 +203,13 @@ def login():
         except pymysql.Error as exc:
             auth_status = "error"
             sql_error_message = str(exc)
+            
+            # FIX: Memastikan pesan error muncul di HTTP Response agar terdeteksi sqlmap (Illegal_Query)
+            executed_query = f"{executed_query} -- [SQL ERROR] {sql_error_message}"
+            flash(f"Database Error: {sql_error_message}", "danger")
+            
             if IS_DEBUG == "1":
                 print(f"[SQL ERROR] {exc}")
-
-            # VULN: Error-based SQL injection - tampilkan error di response HTTP 200
-            # (HTTP 500 menyebabkan sqlmap tidak mengenali sebagai indikasi injeksi)
 
     return render_template(
         "login.html",
