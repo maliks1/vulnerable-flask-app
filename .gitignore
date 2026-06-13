@@ -8,3 +8,4 @@ __pycache__/
 *.db
 .env
 implementation_plan.md
+sqlmap-dev/
