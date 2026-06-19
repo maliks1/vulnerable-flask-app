@@ -18,7 +18,7 @@ import re
 from typing import Any, Dict, Optional, Tuple
 import time
 from collections import OrderedDict
-
+import threading
 try:
     import joblib as _joblib
     _HAS_JOBLIB = True
@@ -160,6 +160,8 @@ class SQLiDetector:
         # Cache internal untuk mempercepat prediksi berulang (LRU Cache style)
         self._cache: OrderedDict[str, Tuple[str, float, Dict[str, float]]] = OrderedDict()
         self._max_cache_size = 2048
+        # Lock untuk thread-safety pada cache (Flask melayani request konkuren)
+        self._lock = threading.RLock()
 
         self._load(model_path)
 
@@ -346,20 +348,24 @@ class SQLiDetector:
         pre_filter_ms = (t_pre_end - t_pre_start) * 1000.0
         self._record_metric('pre_filter_ms', pre_filter_ms)
 
-        # Cache hit tetap mencatat waktu pre-filter aktual request saat ini.
+        # Cache hit: periksa di bawah lock agar konsisten antar thread
+        with self._lock:
+            if text in self._cache:
+                cached = self._cache[text]
+                self._cache.move_to_end(text)
         if text in self._cache:
             self._record_metric('ml_ms', 0.0)
-            self._cache.move_to_end(text)
-            return self._cache[text]
+            return cached
 
         if is_safe:
             self._record_metric('ml_ms', 0.0)
             result = ("legitimate", 0.95, {"0": 0.95, "1": 0.05})
-            # Simpan ke cache dengan LRU eviction
-            self._cache[text] = result
-            self._cache.move_to_end(text)
-            if len(self._cache) > self._max_cache_size:
-                self._cache.popitem(last=False)
+            # Simpan ke cache dengan LRU eviction (thread-safe)
+            with self._lock:
+                self._cache[text] = result
+                self._cache.move_to_end(text)
+                if len(self._cache) > self._max_cache_size:
+                    self._cache.popitem(last=False)
             return result
 
         # Prediksi ML (dengan preprocessing text)
@@ -379,12 +385,13 @@ class SQLiDetector:
         self._record_metric('ml_ms', ml_ms)
 
         result = (label, confidence, proba_map)
-        
-        # Simpan ke cache dengan LRU eviction
-        self._cache[text] = result
-        self._cache.move_to_end(text)
-        if len(self._cache) > self._max_cache_size:
-            self._cache.popitem(last=False)
+
+        # Simpan ke cache dengan LRU eviction (thread-safe)
+        with self._lock:
+            self._cache[text] = result
+            self._cache.move_to_end(text)
+            if len(self._cache) > self._max_cache_size:
+                self._cache.popitem(last=False)
 
         return result
 
@@ -411,12 +418,14 @@ class SQLiDetector:
             if self.vectorizer is not None
             else "bare model"
         )
+        with self._lock:
+            cache_size = len(self._cache)
         return (
             f"SQLiDetector(type={kind}, "
             f"classes={self._classes}, "
             f"threshold={self.threshold}, "
             f"prefilter={self.use_prefilter}, "
-            f"cache_size={len(self._cache)})"
+            f"cache_size={cache_size})"
         )
 
 
