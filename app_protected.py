@@ -12,30 +12,31 @@ Routes
 
 from __future__ import annotations
 
-import logging
 import json
-from datetime import datetime, timedelta
-import time
+import logging
 import os
 import signal
+import time
+from datetime import datetime, timedelta
 
+import pymysql
 from flask import (
     Flask,
+    abort,
     flash,
+    g,
+    make_response,
     redirect,
     render_template,
     request,
     session,
     url_for,
-    abort,
-    g
 )
-import pymysql
 
 # Import helper functions from centralized utils module
 from config import IS_DEBUG
-from utils import db_session
 from middleware import SQLiDetector, preprocess_text
+from utils import db_session
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -51,6 +52,7 @@ logger = logging.getLogger("app_protected")
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "protected-app-secret-key-2024")
+
 
 class SQLiLatencyTracker:
     """
@@ -85,10 +87,12 @@ class SQLiLatencyTracker:
         runtime_formatted = str(timedelta(seconds=int(runtime_seconds)))
         return f"Rata-rata latensi SQLi: {avg:.2f} ms (dari {self.detection_count} deteksi) - Runtime: {runtime_formatted}"
 
+
 MODEL_PATH = "model_sqli_nb.pkl"
 
 # Initialize SQLi latency tracker
 sqli_latency_tracker = SQLiLatencyTracker()
+
 
 def shutdown_handler(signum, frame) -> None:
     """Handler untuk sinyal shutdown (Ctrl+C)."""
@@ -99,6 +103,7 @@ def shutdown_handler(signum, frame) -> None:
     write_latency_log(summary)
     # Re-raise the signal to allow normal shutdown
     os.kill(os.getpid(), signum)
+
 
 # Set up signal handlers
 signal.signal(signal.SIGINT, shutdown_handler)
@@ -113,9 +118,11 @@ except Exception as exc:
     logger.error("Gagal memuat model: %s", exc)
     raise
 
+
 @app.context_processor
 def inject_debug_flag():
     return {"IS_DEBUG": IS_DEBUG}
+
 
 # ---------------------------------------------------------------------------
 # Middleware: before_request SQLi guard
@@ -129,12 +136,14 @@ def init_request_timing():
     g.request_start_epoch = time.time()
 
     # Client send time (in ms since epoch)
-    client_time_ms = request.form.get("_client_sent_time") or request.headers.get("X-Client-Sent-Time")
+    client_time_ms = request.form.get("_client_sent_time") or request.headers.get(
+        "X-Client-Sent-Time"
+    )
     g.client_sent_time = None
     g.network_ms = 0.0
     if client_time_ms:
         try:
-            g.client_sent_time = float(client_time_ms) / 1000.0 # convert ms to seconds
+            g.client_sent_time = float(client_time_ms) / 1000.0  # convert ms to seconds
             # Calculate network latency: request arrival epoch minus client send epoch
             network_diff = g.request_start_epoch - g.client_sent_time
             if network_diff > 0:
@@ -150,8 +159,9 @@ def init_request_timing():
         "decision_ms": 0.0,
         "total_ms": 0.0,
         "username_val": request.form.get("username", ""),
-        "password_val": request.form.get("password", "")
+        "password_val": request.form.get("password", ""),
     }
+
 
 @app.before_request
 def ml_sqli_guard() -> None:
@@ -191,32 +201,38 @@ def ml_sqli_guard() -> None:
             client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
             timestamp = datetime.utcnow().isoformat() + "Z"
             try:
-                proba_serial = json.dumps({k: round(v, 6) for k, v in proba_map.items()})
+                proba_serial = json.dumps(
+                    {k: round(v, 6) for k, v in proba_map.items()}
+                )
             except Exception:
                 proba_serial = str(proba_map)
 
             # Calculate blocking decision latency
-            if IS_DEBUG == "1" and hasattr(g, 'request_start_time') and hasattr(g, 'sqli_metrics'):
+            if (
+                IS_DEBUG == "1"
+                and hasattr(g, "request_start_time")
+                and hasattr(g, "sqli_metrics")
+            ):
                 t_now = time.perf_counter()
                 decision_ms = (t_now - g.request_start_time) * 1000.0
                 g.sqli_metrics["decision_ms"] = decision_ms
                 g.sqli_metrics["total_ms"] = decision_ms
 
             # Record latency for SQLi detection
-            if hasattr(g, 'request_start_time'):
+            if hasattr(g, "request_start_time"):
                 total_latency_ms = (time.perf_counter() - g.request_start_time) * 1000.0
                 sqli_latency_tracker.add_latency(total_latency_ms)
 
-            if IS_DEBUG == "1":
-                logger.warning(
-                    "[FORNSIC] time=%s ip=%s field=%s confidence=%.6f payload=%r proba=%s",
-                    timestamp,
-                    client_ip,
-                    field_name,
-                    float(confidence),
-                    value,
-                    proba_serial,
-                )
+            # if IS_DEBUG == "1":
+            #     logger.warning(
+            #         "[FORNSIC] time=%s ip=%s field=%s confidence=%.6f payload=%r proba=%s",
+            #         timestamp,
+            #         client_ip,
+            #         field_name,
+            #         float(confidence),
+            #         value,
+            #         proba_serial,
+            #     )
 
             if IS_DEBUG == "1":
                 # Log timing breakdown to console
@@ -225,8 +241,12 @@ def ml_sqli_guard() -> None:
                 t_ml = g.sqli_metrics.get("ml_ms", 0.0)
                 t_dec = g.sqli_metrics.get("decision_ms", 0.0)
                 t_net = g.sqli_metrics.get("network_ms", 0.0)
-                username_preprocessed = preprocess_text(g.sqli_metrics.get("username_val", ""))
-                password_preprocessed = preprocess_text(g.sqli_metrics.get("password_val", ""))
+                username_preprocessed = preprocess_text(
+                    g.sqli_metrics.get("username_val", "")
+                )
+                password_preprocessed = preprocess_text(
+                    g.sqli_metrics.get("password_val", "")
+                )
                 logger.info(
                     "\n"
                     "============================================================\n"
@@ -245,7 +265,11 @@ def ml_sqli_guard() -> None:
                     " (Debugging) Password After Preprocessing : %s\n"
                     "============================================================",
                     g.client_sent_time if g.client_sent_time else "N/A",
-                    t_net, t_pre, t_ml, t_dec, t_total,
+                    t_net,
+                    t_pre,
+                    t_ml,
+                    t_dec,
+                    t_total,
                     g.sqli_metrics.get("username_val", ""),
                     username_preprocessed,
                     g.sqli_metrics.get("password_val", ""),
@@ -256,12 +280,17 @@ def ml_sqli_guard() -> None:
             if IS_DEBUG == "1":
                 session["sqli_metrics"] = g.sqli_metrics
 
-            # Kembalikan HTTP 403 Forbidden sebagai aksi blok
+            # Abort with 403 so Flask dispatches to the custom errorhandler(403)
+            # which renders templates/403.html with the collected metrics.
             abort(403)
+        # end for field
+    # end def
+
 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -288,9 +317,11 @@ def index():
             t_ml_end = time.perf_counter()
             ml_ms = (t_ml_end - t_ml_start) * 1000.0
 
-            if IS_DEBUG == "1" and hasattr(g, 'sqli_metrics'):
-                g.sqli_metrics['ml_ms'] = ml_ms
-                g.sqli_metrics['decision_ms'] = (t_ml_end - g.request_start_time) * 1000.0
+            if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
+                g.sqli_metrics["ml_ms"] = ml_ms
+                g.sqli_metrics["decision_ms"] = (
+                    t_ml_end - g.request_start_time
+                ) * 1000.0
             ml_result = {
                 "label": label,
                 "confidence": round(confidence, 4),
@@ -311,17 +342,17 @@ def index():
                         t_db_start = time.perf_counter()
                         cursor.execute(
                             "SELECT id FROM users WHERE username = %s AND password = %s",
-                            (raw_username, raw_password)
+                            (raw_username, raw_password),
                         )
                         row = cursor.fetchone()
                         t_db_end = time.perf_counter()
                         db_ms = (t_db_end - t_db_start) * 1000.0
 
-                        if IS_DEBUG == "1" and hasattr(g, 'sqli_metrics'):
-                            g.sqli_metrics['db_ms'] = db_ms
+                        if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
+                            g.sqli_metrics["db_ms"] = db_ms
                             t_now = time.perf_counter()
                             total_ms = (t_now - g.request_start_time) * 1000.0
-                            g.sqli_metrics['total_ms'] = total_ms
+                            g.sqli_metrics["total_ms"] = total_ms
 
                             if IS_DEBUG == "1":
                                 # Log timing breakdown to console
@@ -365,12 +396,23 @@ def index():
         if login_ok:
             return redirect(url_for("home"))
 
-    return render_template(
-        "protected_login.html",
-        ml_result=ml_result,
-        raw_username=raw_username,
-        raw_password=raw_password,
+    resp = make_response(
+        render_template(
+            "protected_login.html",
+            ml_result=ml_result,
+            raw_username=raw_username,
+            raw_password=raw_password,
+        )
     )
+    if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
+        resp.headers["X-Metrics-Total-Ms"] = (
+            f"{g.sqli_metrics.get('total_ms', 0.0):.4f}"
+        )
+        resp.headers["X-Metrics-DB-Ms"] = f"{g.sqli_metrics.get('db_ms', 0.0):.4f}"
+        resp.headers["X-Metrics-ML-Ms"] = f"{g.sqli_metrics.get('ml_ms', 0.0):.4f}"
+        resp.headers["X-Metrics-Stage"] = "allowed_login"
+    return resp
+
 
 @app.route("/home")
 def home():
@@ -380,24 +422,33 @@ def home():
     username = session["user"]
     return render_template("home.html", username=username)
 
+
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     flash("Anda telah logout.", "info")
     return redirect(url_for("index"))
 
+
 # Custom 403 Forbidden Error Handler
 @app.errorhandler(403)
 def forbidden_error(error):
     """Custom error handler for HTTP 403 Forbidden."""
     metrics = session.pop("sqli_metrics", None) if IS_DEBUG == "1" else None
-    if IS_DEBUG == "1" and not metrics and hasattr(g, 'sqli_metrics'):
+    if IS_DEBUG == "1" and not metrics and hasattr(g, "sqli_metrics"):
         metrics = g.sqli_metrics
-        if hasattr(g, 'request_start_time'):
+        if hasattr(g, "request_start_time"):
             decision_ms = (time.perf_counter() - g.request_start_time) * 1000.0
-            metrics['decision_ms'] = decision_ms
-            metrics['total_ms'] = decision_ms
-    return render_template('403.html', metrics=metrics, IS_DEBUG=IS_DEBUG), 403
+            metrics["decision_ms"] = decision_ms
+            metrics["total_ms"] = decision_ms
+    response = make_response(
+        render_template("403.html", metrics=metrics, IS_DEBUG=IS_DEBUG), 403
+    )
+    if IS_DEBUG == "1" and metrics:
+        response.headers["X-Metrics-Total-Ms"] = f"{metrics.get('total_ms', 0.0):.4f}"
+        response.headers["X-Metrics-Stage"] = "blocked_403"
+    return response
+
 
 def write_latency_log(summary: str) -> None:
     """Fungsi untuk menulis log ke file."""
@@ -415,6 +466,6 @@ def write_latency_log(summary: str) -> None:
 
     logger.info("SQLi latency log written: %s", summary)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     app.run(debug=(IS_DEBUG == "1"), host="0.0.0.0", port=5002)
