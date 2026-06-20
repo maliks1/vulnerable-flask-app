@@ -1,7 +1,10 @@
-import os
-import pymysql
 import logging
-import pymysql.constants.CLIENT
+from contextlib import contextmanager
+
+import pymysql
+import pymysql.constants
+from pymysql.constants import CLIENT
+
 from config import IS_DEBUG
 from mysql_config import MYSQL_CONFIG
 
@@ -9,19 +12,20 @@ logger = logging.getLogger("utils")
 
 # MySQL database configuration
 
+
 def sql_connect() -> pymysql.connections.Connection | None:
     """
     Establish a connection to the MySQL database.
     """
     try:
         return pymysql.connect(
-            host=MYSQL_CONFIG['host'],
-            port=MYSQL_CONFIG['port'],
-            user=MYSQL_CONFIG['user'],
-            password=MYSQL_CONFIG['password'],
-            database=MYSQL_CONFIG['database'],
+            host=MYSQL_CONFIG["host"],
+            port=MYSQL_CONFIG["port"],
+            user=MYSQL_CONFIG["user"],
+            password=MYSQL_CONFIG["password"],
+            database=MYSQL_CONFIG["database"],
             # TAMBAHAN: Izinkan eksekusi multi-statement untuk simulasi Stacked Queries
-            client_flag=pymysql.constants.CLIENT.MULTI_STATEMENTS
+            client_flag=CLIENT.MULTI_STATEMENTS,
         )
     except pymysql.Error as err:
         if IS_DEBUG == "1":
@@ -29,7 +33,6 @@ def sql_connect() -> pymysql.connections.Connection | None:
             print(f"[DB ERROR] {err}")
         return None
 
-from contextlib import contextmanager
 
 @contextmanager
 def db_session():
@@ -43,6 +46,7 @@ def db_session():
     finally:
         if conn:
             conn.close()
+
 
 def parse_statements(raw_sql: str) -> list[str]:
     """

@@ -140,7 +140,6 @@
     <h2 class="mb-0 mr-3 font-weight-bold" style="color: var(--brand-success);">
         Login Terlindungi
     </h2>
-    <span class="badge-protected">ML Naive Bayes Aktif</span>
 </div>
 <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 28px; margin-left: 36px;">
     Kredensial Anda diinspeksi secara real-time oleh model klasifikasi <code>model_sqli_nb.pkl</code> secara <em>zero-trust</em> sebelum kueri dieksekusi ke database.
@@ -180,17 +179,6 @@
         </div>
         <div class="card-body p-4">
             <div class="telemetry-stepper">
-                {% if g.sqli_metrics.network_ms > 0 %}
-                <div class="telemetry-step">
-                    <div class="ts-icon">🌐</div>
-                    <div class="ts-info">
-                        <div class="ts-title">Transmisi Jaringan (Network Latency)</div>
-                        <div class="ts-desc">Waktu transmisi payload dari browser ke server</div>
-                    </div>
-                    <div class="ts-time">{{ g.sqli_metrics.network_ms | round(3) }} ms</div>
-                </div>
-                {% endif %}
-
                 <div class="telemetry-step">
                     <div class="ts-icon">🧹</div>
                     <div class="ts-info">
@@ -311,7 +299,6 @@
     </div>
     <div class="card-body p-4">
         <form method="POST" autocomplete="off" id="loginForm">
-            <input type="hidden" name="_client_sent_time" id="client_sent_time" />
             <div class="form-group mb-4">
                 <label for="username">
                     Username
@@ -342,7 +329,7 @@
             </div>
 
             <button type="submit" class="btn btn-exec" id="submitBtn">
-                Otentikasi Aman (Zero-Trust)
+                Masuk
             </button>
         </form>
     </div>
@@ -418,15 +405,6 @@
 </script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        var form = document.getElementById('loginForm');
-        if (form) {
-            form.addEventListener('submit', function() {
-                var clientTime = document.getElementById('client_sent_time');
-                if (clientTime) {
-                    clientTime.value = Date.now();
-                }
-            });
-        }
         document.querySelectorAll('.proba-bar[data-width]').forEach(function(el) {
             el.style.width = el.getAttribute('data-width');
             el.style.backgroundColor = el.getAttribute('data-bg');

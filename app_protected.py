@@ -12,7 +12,6 @@ Routes
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import signal
@@ -133,26 +132,8 @@ def init_request_timing():
         return
 
     g.request_start_time = time.perf_counter()
-    g.request_start_epoch = time.time()
-
-    # Client send time (in ms since epoch)
-    client_time_ms = request.form.get("_client_sent_time") or request.headers.get(
-        "X-Client-Sent-Time"
-    )
-    g.client_sent_time = None
-    g.network_ms = 0.0
-    if client_time_ms:
-        try:
-            g.client_sent_time = float(client_time_ms) / 1000.0  # convert ms to seconds
-            # Calculate network latency: request arrival epoch minus client send epoch
-            network_diff = g.request_start_epoch - g.client_sent_time
-            if network_diff > 0:
-                g.network_ms = network_diff * 1000.0
-        except Exception:
-            pass
 
     g.sqli_metrics = {
-        "network_ms": g.network_ms,
         "pre_filter_ms": 0.0,
         "ml_ms": 0.0,
         "db_ms": 0.0,
@@ -177,104 +158,49 @@ def ml_sqli_guard() -> None:
         ("password", request.form.get("password", "")),
     ]
 
+    # Reset stage timings at the start of this guard so accumulated values
+    # from any stale state cannot leak in. We use interval-based timings
+    # measured from g.request_start_time so the sum of stages is consistent
+    # with the final total_ms computed in after_request.
+    if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
+        g.sqli_metrics["pre_filter_ms"] = 0.0
+        g.sqli_metrics["ml_ms"] = 0.0
+        g.sqli_metrics["decision_ms"] = 0.0
+        g.sqli_metrics["blocked"] = False
+
     for field_name, value in fields_to_check:
         if not value:
             continue
         try:
+            _t_ml0 = time.perf_counter()
             label, confidence, proba_map = detector.predict(value)
+            _t_ml1 = time.perf_counter()
+            if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
+                # Pure ML inference time (delta), accumulated across fields.
+                g.sqli_metrics["ml_ms"] = (
+                    g.sqli_metrics.get("ml_ms", 0.0) + (_t_ml1 - _t_ml0) * 1000.0
+                )
         except Exception as exc:
             if IS_DEBUG == "1":
                 logger.warning("Prediksi gagal untuk field '%s': %s", field_name, exc)
             continue
 
-        if IS_DEBUG == "1":
-            logger.info(
-                "[GUARD] field=%s | label=%s | confidence=%.4f | value=%.60r",
-                field_name,
-                label,
-                confidence,
-                value,
-            )
-
         if label == "sqli":
-            # Forensic logging: timestamp, client IP, payload, confidence, proba_map
-            client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-            timestamp = datetime.utcnow().isoformat() + "Z"
-            try:
-                proba_serial = json.dumps(
-                    {k: round(v, 6) for k, v in proba_map.items()}
-                )
-            except Exception:
-                proba_serial = str(proba_map)
-
-            # Calculate blocking decision latency
             if (
                 IS_DEBUG == "1"
                 and hasattr(g, "request_start_time")
                 and hasattr(g, "sqli_metrics")
             ):
                 t_now = time.perf_counter()
-                decision_ms = (t_now - g.request_start_time) * 1000.0
-                g.sqli_metrics["decision_ms"] = decision_ms
-                g.sqli_metrics["total_ms"] = decision_ms
+                # decision_ms = full elapsed from request start to block
+                # decision. Includes pre_filter + all ml predicts.
+                g.sqli_metrics["decision_ms"] = (t_now - g.request_start_time) * 1000.0
+                g.sqli_metrics["blocked"] = True
 
             # Record latency for SQLi detection
             if hasattr(g, "request_start_time"):
                 total_latency_ms = (time.perf_counter() - g.request_start_time) * 1000.0
                 sqli_latency_tracker.add_latency(total_latency_ms)
-
-            # if IS_DEBUG == "1":
-            #     logger.warning(
-            #         "[FORNSIC] time=%s ip=%s field=%s confidence=%.6f payload=%r proba=%s",
-            #         timestamp,
-            #         client_ip,
-            #         field_name,
-            #         float(confidence),
-            #         value,
-            #         proba_serial,
-            #     )
-
-            if IS_DEBUG == "1":
-                # Log timing breakdown to console
-                t_total = g.sqli_metrics.get("total_ms", 0.0)
-                t_pre = g.sqli_metrics.get("pre_filter_ms", 0.0)
-                t_ml = g.sqli_metrics.get("ml_ms", 0.0)
-                t_dec = g.sqli_metrics.get("decision_ms", 0.0)
-                t_net = g.sqli_metrics.get("network_ms", 0.0)
-                username_preprocessed = preprocess_text(
-                    g.sqli_metrics.get("username_val", "")
-                )
-                password_preprocessed = preprocess_text(
-                    g.sqli_metrics.get("password_val", "")
-                )
-                logger.info(
-                    "\n"
-                    "============================================================\n"
-                    " [TELEMETRY] BLOCKED SQL INJECTION INTRUSION\n"
-                    "------------------------------------------------------------\n"
-                    " Client Send Epoch      : %s\n"
-                    " HTTP Request Arrival   : [OK] (Net Latency: %.4f ms)\n"
-                    " Query Pre-Filter Check : %.4f ms\n"
-                    " ML Model Prediction    : %.4f ms\n"
-                    " Blocking Decision Made : %.4f ms\n"
-                    "------------------------------------------------------------\n"
-                    " Total Backend Latency  : %.4f ms\n"
-                    " Sent Input Username    : %s\n"
-                    " (Debugging) Username After Preprocessing : %s\n"
-                    " Sent Input Password    : %s\n"
-                    " (Debugging) Password After Preprocessing : %s\n"
-                    "============================================================",
-                    g.client_sent_time if g.client_sent_time else "N/A",
-                    t_net,
-                    t_pre,
-                    t_ml,
-                    t_dec,
-                    t_total,
-                    g.sqli_metrics.get("username_val", ""),
-                    username_preprocessed,
-                    g.sqli_metrics.get("password_val", ""),
-                    password_preprocessed,
-                )
 
             # Keep metrics in session so we can display them on 403 or redirect
             if IS_DEBUG == "1":
@@ -285,6 +211,71 @@ def ml_sqli_guard() -> None:
             abort(403)
         # end for field
     # end def
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle: hitung total_ms SETELAH response body selesai di-render
+# (sama dengan titik ukur di main.py agar perbandingan apples-to-apples)
+# ---------------------------------------------------------------------------
+@app.after_request
+def log_request_latency(response):
+    """
+    Finalise total_ms AFTER the response body is fully rendered, then emit the
+    telemetry block. Runs for both ALLOWED and BLOCKED paths (Flask invokes
+    after_request even when the response originated from an error handler).
+    """
+    if IS_DEBUG != "1":
+        return response
+    if not hasattr(g, "request_start_time"):
+        return response
+    if not hasattr(g, "sqli_metrics"):
+        return response
+    if request.path.startswith("/static/"):
+        return response
+
+    metrics = g.sqli_metrics
+    if metrics.get("blocked"):
+        # For blocked path: total = sum of measured stages. No DB stage, so
+        # pre_filter + ml + decision == total.
+        total_ms = (
+            metrics.get("pre_filter_ms", 0.0)
+            + metrics.get("ml_ms", 0.0)
+            + metrics.get("decision_ms", 0.0)
+        )
+    else:
+        # For allowed path: total includes DB + everything up to after_request.
+        total_ms = (time.perf_counter() - g.request_start_time) * 1000.0
+    metrics["total_ms"] = total_ms
+
+    if metrics.get("blocked"):
+        username_preprocessed = preprocess_text(metrics.get("username_val", ""))
+        password_preprocessed = preprocess_text(metrics.get("password_val", ""))
+        logger.info(
+            "\n"
+            "============================================================\n"
+            " [TELEMETRY] BLOCKED SQL INJECTION INTRUSION\n"
+            "------------------------------------------------------------\n"
+            " Query Pre-Filter Check : %.4f ms\n"
+            " ML Model Prediction    : %.4f ms\n"
+            " Blocking Decision Made : %.4f ms\n"
+            "------------------------------------------------------------\n"
+            " Total Backend Latency  : %.4f ms\n"
+            " Sent Input Username    : %s\n"
+            " (Debugging) Username After Preprocessing : %s\n"
+            " Sent Input Password    : %s\n"
+            " (Debugging) Password After Preprocessing : %s\n"
+            "============================================================",
+            metrics.get("pre_filter_ms", 0.0),
+            metrics.get("ml_ms", 0.0),
+            metrics.get("decision_ms", 0.0),
+            total_ms,
+            metrics.get("username_val", ""),
+            username_preprocessed,
+            metrics.get("password_val", ""),
+            password_preprocessed,
+        )
+
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -307,8 +298,13 @@ def index():
     if request.method == "POST":
         raw_username = request.form.get("username", "")
         raw_password = request.form.get("password", "")
+        t_pre_start = time.perf_counter()
         username_preprocessed = preprocess_text(raw_username)
         password_preprocessed = preprocess_text(raw_password)
+        t_pre_end = time.perf_counter()
+        pre_filter_ms = (t_pre_end - t_pre_start) * 1000.0
+        if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
+            g.sqli_metrics["pre_filter_ms"] = pre_filter_ms
 
         # Prediksi ML untuk tampilan edukatif (guard sudah jalan di before_request)
         try:
@@ -318,7 +314,7 @@ def index():
             ml_ms = (t_ml_end - t_ml_start) * 1000.0
 
             if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
-                g.sqli_metrics["ml_ms"] = ml_ms
+                g.sqli_metrics["ml_ms"] = g.sqli_metrics.get("ml_ms", 0.0) + ml_ms
                 g.sqli_metrics["decision_ms"] = (
                     t_ml_end - g.request_start_time
                 ) * 1000.0
@@ -334,62 +330,61 @@ def index():
                 logger.warning("Prediksi ML gagal: %s", exc)
 
         # Autentikasi normal (parameterized - aman)
+        row = None
         try:
+            t_db_start = time.perf_counter()
             with db_session() as conn:
                 if conn:
                     cursor = conn.cursor()
                     try:
-                        t_db_start = time.perf_counter()
                         cursor.execute(
                             "SELECT id FROM users WHERE username = %s AND password = %s",
                             (raw_username, raw_password),
                         )
                         row = cursor.fetchone()
-                        t_db_end = time.perf_counter()
-                        db_ms = (t_db_end - t_db_start) * 1000.0
-
-                        if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
-                            g.sqli_metrics["db_ms"] = db_ms
-                            t_now = time.perf_counter()
-                            total_ms = (t_now - g.request_start_time) * 1000.0
-                            g.sqli_metrics["total_ms"] = total_ms
-
-                            if IS_DEBUG == "1":
-                                # Log timing breakdown to console
-                                logger.info(
-                                    "\n"
-                                    "============================================================\n"
-                                    " [TELEMETRY] ALLOWED REQUEST (ZERO-TRUST PASSED)\n"
-                                    "------------------------------------------------------------\n"
-                                    " HTTP Request Arrival   : [OK] (Net Latency: %.4f ms)\n"
-                                    " Query Pre-Filter Check : %.4f ms\n"
-                                    " ML Model Prediction    : %.4f ms\n"
-                                    " Database Query Exec    : %.4f ms\n"
-                                    "------------------------------------------------------------\n"
-                                    " Total Backend Latency  : %.4f ms\n"
-                                    " Sent Input Username    : %s\n"
-                                    " (Debugging) Username After Preprocessing : %s\n"
-                                    " Sent Input Password    : %s\n"
-                                    " (Debugging) Password After Preprocessing : %s\n"
-                                    "============================================================",
-                                    g.sqli_metrics.get("network_ms", 0.0),
-                                    g.sqli_metrics.get("pre_filter_ms", 0.0),
-                                    g.sqli_metrics.get("ml_ms", 0.0),
-                                    db_ms,
-                                    total_ms,
-                                    g.sqli_metrics.get("username_val", ""),
-                                    username_preprocessed,
-                                    g.sqli_metrics.get("password_val", ""),
-                                    password_preprocessed,
-                                )
-                        if row:
-                            session["user"] = raw_username
-                            login_ok = True
-                            flash("Login berhasil!", "success")
-                        else:
-                            flash("Username atau password salah.", "danger")
                     finally:
                         cursor.close()
+            t_db_end = time.perf_counter()
+            db_ms = (t_db_end - t_db_start) * 1000.0
+
+            if IS_DEBUG == "1" and hasattr(g, "sqli_metrics"):
+                g.sqli_metrics["db_ms"] = db_ms
+                t_now = time.perf_counter()
+                total_ms = (t_now - g.request_start_time) * 1000.0
+                g.sqli_metrics["total_ms"] = total_ms
+
+                if IS_DEBUG == "1":
+                    # Log timing breakdown to console
+                    logger.info(
+                        "\n"
+                        "============================================================\n"
+                        " [TELEMETRY] ALLOWED REQUEST (ZERO-TRUST PASSED)\n"
+                        "------------------------------------------------------------\n"
+                        " Query Pre-Filter Check : %.4f ms\n"
+                        " ML Model Prediction    : %.4f ms\n"
+                        " Database Query Exec    : %.4f ms\n"
+                        "------------------------------------------------------------\n"
+                        " Total Backend Latency  : %.4f ms\n"
+                        " Sent Input Username    : %s\n"
+                        " (Debugging) Username After Preprocessing : %s\n"
+                        " Sent Input Password    : %s\n"
+                        " (Debugging) Password After Preprocessing : %s\n"
+                        "============================================================",
+                        g.sqli_metrics.get("pre_filter_ms", 0.0),
+                        g.sqli_metrics.get("ml_ms", 0.0),
+                        db_ms,
+                        total_ms,
+                        g.sqli_metrics.get("username_val", ""),
+                        username_preprocessed,
+                        g.sqli_metrics.get("password_val", ""),
+                        password_preprocessed,
+                    )
+                    if row:
+                        session["user"] = raw_username
+                        login_ok = True
+                        flash("Login berhasil!", "success")
+                    else:
+                        flash("Username atau password salah.", "danger")
         except pymysql.Error as exc:
             flash(f"Database error: {exc}", "danger")
 
@@ -434,13 +429,22 @@ def logout():
 @app.errorhandler(403)
 def forbidden_error(error):
     """Custom error handler for HTTP 403 Forbidden."""
-    metrics = session.pop("sqli_metrics", None) if IS_DEBUG == "1" else None
-    if IS_DEBUG == "1" and not metrics and hasattr(g, "sqli_metrics"):
-        metrics = g.sqli_metrics
-        if hasattr(g, "request_start_time"):
-            decision_ms = (time.perf_counter() - g.request_start_time) * 1000.0
-            metrics["decision_ms"] = decision_ms
-            metrics["total_ms"] = decision_ms
+    # Prefer live g.sqli_metrics (same request context) so all timings -
+    # including pre_filter_ms, ml_ms, decision_ms set in before_request -
+    # reach the template. Fall back to session for cross-request cases.
+    metrics = None
+    if IS_DEBUG == "1":
+        if hasattr(g, "sqli_metrics") and g.sqli_metrics:
+            metrics = g.sqli_metrics
+        else:
+            metrics = session.get("sqli_metrics")
+    if IS_DEBUG == "1" and metrics and hasattr(g, "request_start_time"):
+        # Finalise total_ms NOW, before rendering 403.html. after_request
+        # runs AFTER the view/error handler returns, so it cannot help us
+        # populate the template that is rendered right here.
+        metrics["total_ms"] = (time.perf_counter() - g.request_start_time) * 1000.0
+        # Persist final value back to g so after_request sees it.
+        g.sqli_metrics["total_ms"] = metrics["total_ms"]
     response = make_response(
         render_template("403.html", metrics=metrics, IS_DEBUG=IS_DEBUG), 403
     )

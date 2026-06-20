@@ -6,8 +6,9 @@ import time
 from contextlib import contextmanager
 
 import pymysql
-import pymysql.constants.CLIENT
+import pymysql.constants
 from flask import Flask, flash, g, redirect, render_template, request, session, url_for
+from pymysql.constants import CLIENT
 
 IS_DEBUG = os.environ.get("IS_DEBUG", "1")
 
@@ -39,7 +40,7 @@ def sql_connect() -> pymysql.connections.Connection | None:
             password=MYSQL_CONFIG["password"],
             database=MYSQL_CONFIG["database"],
             # INI KUNCINYA: Mengizinkan Stacked Queries, Time-Based, dan SP dieksekusi native
-            client_flag=pymysql.constants.CLIENT.MULTI_STATEMENTS,
+            client_flag=CLIENT.MULTI_STATEMENTS,
         )
     except pymysql.Error as err:
         if IS_DEBUG == "1":
@@ -72,18 +73,6 @@ def init_request_timing():
         return
 
     g.request_start_time = time.perf_counter()
-    g.request_start_epoch = time.time()
-    g.client_send_epoch = request.headers.get("X-Client-Send-Epoch")
-    if g.client_send_epoch is None and request.form.get("_client_sent_time"):
-        try:
-            g.client_send_epoch = float(request.form.get("_client_sent_time")) / 1000.0
-        except (TypeError, ValueError):
-            g.client_send_epoch = None
-    if g.client_send_epoch is not None:
-        try:
-            g.client_send_epoch = float(g.client_send_epoch)
-        except (TypeError, ValueError):
-            g.client_send_epoch = None
 
     g.sqli_metrics = {
         "db_ms": 0.0,
@@ -132,6 +121,7 @@ def login():
         executed_query = login_query
 
         try:
+            t_db_start = time.perf_counter()
             with db_session() as conn:
                 if conn is None:
                     auth_status = "error"
@@ -144,7 +134,6 @@ def login():
                         # FIX: EKSEKUSI NATIVE MURNI.
                         # Tidak ada parsing, tidak ada split, tidak ada is_sp.
                         # Biarkan pymysql menangani MULTI_STATEMENTS secara otomatis.
-                        t_db_start = time.perf_counter()
                         try:
                             cursor.execute(login_query)
                         finally:
@@ -232,40 +221,32 @@ def login():
     )
 
 
-def _print_telemetry_block():
+def _print_telemetry_block(response):
     if IS_DEBUG != "1":
         return
     if not hasattr(g, "sqli_metrics"):
         return
 
+    # Skip GET: no DB execution, no input payload. POST (including 302
+    # redirect-after-success) is always logged.
+    if request.method == "GET":
+        return
+
     metrics = g.sqli_metrics
     db_ms = metrics.get("db_ms", 0.0)
     total_ms = metrics.get("total_ms", 0.0)
-    view_ms = metrics.get("view_ms", 0.0)
-
-    client_epoch = getattr(g, "client_send_epoch", None)
-    if client_epoch is not None:
-        net_latency_ms = (g.request_start_epoch - client_epoch) * 1000.0
-        arrival = f"[OK] (Net Latency: {net_latency_ms:.4f} ms)"
-    else:
-        arrival = "[N/A] (no X-Client-Send-Epoch header)"
 
     raw_user = metrics.get("raw_username", "")
     raw_pass = metrics.get("raw_password", "")
-    pre_user = metrics.get("pre_username", "")
-    pre_pass = metrics.get("pre_password", "")
 
     bar = "=" * 60
     sub = "-" * 60
     print(bar)
     print(" [TELEMETRY] WEB VULNERABLE LOG")
     print(sub)
-    print(f" HTTP Request Arrival   : {arrival}")
     print(f" Database Query Exec    : {db_ms:.4f} ms")
-    print(f" View Processing        : {view_ms:.4f} ms")
-    print()
     print(sub)
-    print(f" Full Request Latency   : {total_ms:.4f} ms")
+    print(f" Total Backend Latency  : {total_ms:.4f} ms")
     print(f" Sent Input Username    : {raw_user}")
     print(f" Sent Input Password    : {raw_pass}")
     print(bar)
@@ -284,7 +265,7 @@ def log_request_latency(response):
 
     total_ms = (time.perf_counter() - g.request_start_time) * 1000.0
     g.sqli_metrics["total_ms"] = total_ms
-    _print_telemetry_block()
+    _print_telemetry_block(response)
     response.headers["X-Metrics-Total-Ms"] = f"{total_ms:.4f}"
     response.headers["X-Metrics-DB-Ms"] = f"{g.sqli_metrics.get('db_ms', 0.0):.4f}"
     response.headers["X-Metrics-View-Ms"] = f"{g.sqli_metrics.get('view_ms', 0.0):.4f}"

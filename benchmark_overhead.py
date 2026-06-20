@@ -1,4 +1,4 @@
-"""
+﻿"""
 benchmark_overhead.py
 ---------------------
 Skrip benchmark untuk mengukur 'Overhead Komputasi' yang dihasilkan oleh
@@ -48,7 +48,7 @@ INTERVAL_SECONDS = 1.0  # jeda antar request (rate-limit, anti-bruteforce)
 # ---------------------------------------------------------------------------
 def measure_latency(
     url: str, payload: dict, n: int, label: str
-) -> tuple[List[float], List[float]]:
+) -> tuple[List[float], List[float], List[float], List[float]]:
     """
     Kirim n request POST ke `url` dengan `payload` yang sama,
     jeda INTERVAL_SECONDS antar request agar stabil (1 req/detik).
@@ -60,6 +60,8 @@ def measure_latency(
     """
     latencies_ms: List[float] = []
     server_latencies_ms: List[float] = []
+    server_db_latencies_ms: List[float] = []
+    server_view_latencies_ms: List[float] = []
 
     # Warm-up: 1 request awal yang tidak dihitung, untuk menghindari
     # bias dari koneksi pertama / cache import.
@@ -83,10 +85,18 @@ def measure_latency(
 
         # Baca server-side latency dari header (fokus utama: input -> selesai).
         server_total = None
+        server_db = None
+        server_view = None
         try:
-            raw = resp.headers.get("X-Metrics-Total-Ms")
-            if raw is not None:
-                server_total = float(raw)
+            raw_total = resp.headers.get("X-Metrics-Total-Ms")
+            raw_db = resp.headers.get("X-Metrics-DB-Ms")
+            raw_view = resp.headers.get("X-Metrics-View-Ms")
+            if raw_total is not None:
+                server_total = float(raw_total)
+            if raw_db is not None:
+                server_db = float(raw_db)
+            if raw_view is not None:
+                server_view = float(raw_view)
         except (TypeError, ValueError):
             server_total = None
         if server_total is not None:
@@ -96,6 +106,10 @@ def measure_latency(
         else:
             primary = elapsed_ms
             src = "client_rtt"
+        if server_db is not None:
+            server_db_latencies_ms.append(server_db)
+        if server_view is not None:
+            server_view_latencies_ms.append(server_view)
 
         print(f"[INFO] {label} req {i}/{n} = {primary:.2f} ms (src={src})")
 
@@ -110,7 +124,12 @@ def measure_latency(
             f"n={len(server_latencies_ms)}, "
             f"mean={statistics.mean(server_latencies_ms):.2f} ms"
         )
-    return latencies_ms, server_latencies_ms
+    return (
+        latencies_ms,
+        server_latencies_ms,
+        server_db_latencies_ms,
+        server_view_latencies_ms,
+    )
 
 
 def summarize(label: str, latencies_ms: List[float]) -> dict:
@@ -135,7 +154,15 @@ def summarize(label: str, latencies_ms: List[float]) -> dict:
     }
 
 
-def print_results(baseline: dict, protected: dict, overhead_ms: float) -> None:
+def print_results(
+    baseline: dict,
+    protected: dict,
+    overhead_ms: float,
+    baseline_db: List[float],
+    protected_db: List[float],
+    baseline_view: List[float],
+    protected_view: List[float],
+) -> None:
     """
     Cetak hasil akhir dalam format tabel ASCII yang gampang disalin
     ke laporan skripsi.
@@ -167,11 +194,48 @@ def print_results(baseline: dict, protected: dict, overhead_ms: float) -> None:
     print(f"{'Overhead (ms)':<24}{overhead_ms:>24.3f}")
     print(f"{'Overhead (%)':<24}{overhead_pct:>24.2f}")
     print("=" * 72)
+
+    # Tabel breakdown per-stage (DB / View) — sumber: X-Metrics-DB-Ms & X-Metrics-View-Ms
     print()
-    print("Catatan: angka di atas adalah SERVER-SIDE latency (X-Metrics-Total-Ms),")
-    print("         diukur dari input masuk sampai proses server selesai")
-    print("         (DB query untuk :5001, ML+abort(403) atau DB untuk :5002).")
-    print("         Tidak memasukkan latensi jaringan dari sisi klien.")
+    print("=" * 72)
+    print(" BREAKDOWN SUB-STAGE (SERVER-SIDE, X-Metrics-* headers) ".center(72, "="))
+    print("=" * 72)
+    print(f"{'Sub-stage':<24}{'Baseline (:5001)':>24}{'Protected (:5002)':>24}")
+    print("-" * 72)
+    b_db_mean = statistics.mean(baseline_db) if baseline_db else 0.0
+    p_db_mean = statistics.mean(protected_db) if protected_db else 0.0
+    b_v_mean = statistics.mean(baseline_view) if baseline_view else 0.0
+    p_v_mean = statistics.mean(protected_view) if protected_view else 0.0
+    print(f"{'DB mean (ms)':<24}{b_db_mean:>24.3f}{p_db_mean:>24.3f}")
+    print(f"{'View mean (ms)':<24}{b_v_mean:>24.3f}{p_v_mean:>24.3f}")
+    if b_db_mean > 0:
+        db_overhead_pct = ((p_db_mean - b_db_mean) / b_db_mean) * 100.0
+    else:
+        db_overhead_pct = 0.0
+    print(f"{'DB overhead (%)':<24}{db_overhead_pct:>24.2f}")
+    print("=" * 72)
+
+    # Overhead ML guard: protected_total - baseline_total - substage delta non-ML
+    non_ml_baseline = b_db_mean + b_v_mean
+    non_ml_protected = p_db_mean + p_v_mean
+    if non_ml_baseline > 0:
+        ml_guard_overhead_ms = overhead_ms - (non_ml_protected - non_ml_baseline)
+    else:
+        ml_guard_overhead_ms = overhead_ms
+    print()
+    print(f"Overhead ML guard (estimated) = {ml_guard_overhead_ms:.3f} ms")
+    print("  (= total_overhead - (db_overhead + view_overhead))")
+    print("=" * 72)
+    print()
+    print(
+        "Catatan: angka TOTAL di atas adalah SERVER-SIDE latency (X-Metrics-Total-Ms),"
+    )
+    print("         diukur dari input masuk sampai response body selesai di-render.")
+    print("         Angka DB/View adalah breakdown dari header X-Metrics-DB-Ms dan")
+    print(
+        "         X-Metrics-View-Ms (sub-stage timer, bukan tambahan overhead jaringan)."
+    )
+    print("         Estimasi ML guard = total_overhead - delta_substage_non_ML.")
     print()
 
 
@@ -182,22 +246,30 @@ def main() -> None:
     print(
         f"[INFO] Mengirim {NUM_REQUESTS} request normal ke Baseline  ({BASELINE_URL}) ..."
     )
-    baseline_lat, _ = measure_latency(
+    _, baseline_server, baseline_db, baseline_view = measure_latency(
         BASELINE_URL, PAYLOAD, NUM_REQUESTS, "Baseline :5001"
     )
-    baseline = summarize("Baseline (:5001)", baseline_lat)
+    baseline = summarize("Baseline (:5001)", baseline_server)
 
     print(
         f"[INFO] Mengirim {NUM_REQUESTS} request normal ke Protected ({PROTECTED_URL}) ..."
     )
-    protected_lat, _ = measure_latency(
+    _, protected_server, protected_db, protected_view = measure_latency(
         PROTECTED_URL, PAYLOAD, NUM_REQUESTS, "Protected :5002"
     )
-    protected = summarize("Protected (:5002)", protected_lat)
+    protected = summarize("Protected (:5002)", protected_server)
 
     overhead_ms = protected["mean"] - baseline["mean"]
 
-    print_results(baseline, protected, overhead_ms)
+    print_results(
+        baseline,
+        protected,
+        overhead_ms,
+        baseline_db,
+        protected_db,
+        baseline_view,
+        protected_view,
+    )
 
 
 if __name__ == "__main__":

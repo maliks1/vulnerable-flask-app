@@ -1,10 +1,6 @@
-﻿{% extends "base.html" %}
-
-{% block title %}403 Forbidden - SQLi Guard{% endblock %}
-
-{% block container_style %}max-width: 680px;{% endblock %}
-
-{% block head_extra %}
+﻿{% extends "base.html" %} {% block title %}403 Forbidden - SQLi Guard{% endblock
+%} {% block container_style %}max-width: 680px;{% endblock %} {% block
+head_extra %}
 <style>
     /* --------------------------------------------------------------------------
        FORBIDDEN CONTAINER & HERO STYLES
@@ -31,7 +27,11 @@
         left: 0;
         right: 0;
         height: 4px;
-        background: linear-gradient(90deg, var(--brand-danger), var(--brand-warning));
+        background: linear-gradient(
+            90deg,
+            var(--brand-danger),
+            var(--brand-warning)
+        );
     }
 
     /* Shield & Lock Animated Graphic */
@@ -174,7 +174,8 @@
        KEY ANIMATIONS
        -------------------------------------------------------------------------- */
     @keyframes pulse-shield {
-        0%, 100% {
+        0%,
+        100% {
             transform: scale(1);
             filter: drop-shadow(0 4px 6px var(--brand-danger-glow));
         }
@@ -185,8 +186,12 @@
     }
 
     @keyframes rotate-dashed {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
     }
 
     /* --------------------------------------------------------------------------
@@ -246,7 +251,7 @@
         position: relative;
     }
     .telemetry-stepper::before {
-        content: '';
+        content: "";
         position: absolute;
         left: 20px;
         top: 10px;
@@ -303,66 +308,106 @@
         flex-shrink: 0;
     }
 </style>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <div class="forbidden-hero">
     <!-- Icon Graphic -->
     <div class="forbidden-icon-container">
         <div class="forbidden-icon-bg"></div>
         <!-- Premium Shield SVG Lock Icon -->
-        <svg class="forbidden-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <rect x="9" y="11" width="6" height="5" rx="1" fill="currentColor" fill-opacity="0.1"/>
-            <path d="M10 11V9a2 2 0 1 1 4 0v2"/>
+        <svg
+            class="forbidden-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+        >
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <rect
+                x="9"
+                y="11"
+                width="6"
+                height="5"
+                rx="1"
+                fill="currentColor"
+                fill-opacity="0.1"
+            />
+            <path d="M10 11V9a2 2 0 1 1 4 0v2" />
         </svg>
         <span class="forbidden-badge">SECURED</span>
     </div>
 
     <!-- Headers -->
     <h2 class="forbidden-title">Akses Ditolak / 403 Forbidden</h2>
-    
+
     <p class="forbidden-subtitle">
-        Koneksi Anda ke endpoint ini ditolak karena permintaan melanggar aturan keamanan aplikasi. Sistem mendeteksi parameter yang tidak aman atau Anda tidak memiliki otorisasi yang sesuai.
+        Koneksi Anda ke endpoint ini ditolak karena permintaan melanggar aturan
+        keamanan aplikasi. Sistem mendeteksi parameter yang tidak aman atau Anda
+        tidak memiliki otorisasi yang sesuai.
     </p>
 
     <!-- System Diagnostic Report -->
-    {% if IS_DEBUG == '1' and metrics %}
-    <div class="card mb-4 mt-4" style="border-color: var(--brand-danger-glow); background: var(--bg-card); text-align: left;">
-        <div class="card-header hdr-red d-flex justify-content-between align-items-center">
-            <strong>⏱️ Analisis Latensi Deteksi Keamanan (Block Telemetry)</strong>
-            <span class="badge badge-danger" style="font-family: var(--font-mono); font-size: 0.82rem; background: var(--bg-danger-subtle); color: var(--brand-danger); border: 1px solid var(--brand-danger-glow);">
-                Total: {{ metrics.total_ms | round(3) }} ms
+    {% if IS_DEBUG == '1' and metrics %} {# Compute Total as sum of measured
+    stages so it matches the terminal log #} {% set _pre = metrics.pre_filter_ms
+    or 0 %} {% set _ml = metrics.ml_ms or 0 %} {% set _dec = metrics.decision_ms
+    or 0 %} {% set _total = _pre + _ml + _dec %}
+    <div
+        class="card mb-4 mt-4"
+        style="
+            border-color: var(--brand-danger-glow);
+            background: var(--bg-card);
+            text-align: left;
+        "
+    >
+        <div
+            class="card-header hdr-red d-flex justify-content-between align-items-center"
+        >
+            <strong
+                >⏱️ Analisis Latensi Deteksi Keamanan (Block Telemetry)</strong
+            >
+            <span
+                class="badge badge-danger"
+                style="
+                    font-family: var(--font-mono);
+                    font-size: 0.82rem;
+                    background: var(--bg-danger-subtle);
+                    color: var(--brand-danger);
+                    border: 1px solid var(--brand-danger-glow);
+                "
+            >
+                Total: {{ _total | round(3) }} ms
             </span>
         </div>
         <div class="card-body p-4">
             <div class="telemetry-stepper">
-                {% if metrics.network_ms > 0 %}
-                <div class="telemetry-step">
-                    <div class="ts-icon">🌐</div>
-                    <div class="ts-info">
-                        <div class="ts-title">Transmisi Jaringan (Network Latency)</div>
-                        <div class="ts-desc">Waktu transmisi payload dari browser ke server</div>
-                    </div>
-                    <div class="ts-time">{{ metrics.network_ms | round(3) }} ms</div>
-                </div>
-                {% endif %}
-                
                 <div class="telemetry-step">
                     <div class="ts-icon">🧹</div>
                     <div class="ts-info">
-                        <div class="ts-title">Pembersihan & Pre-filter (Query Cleansing)</div>
-                        <div class="ts-desc">Evaluasi karakter SQL berbahaya menggunakan regex pelindung</div>
+                        <div class="ts-title">
+                            Pembersihan & Pre-filter (Query Cleansing)
+                        </div>
+                        <div class="ts-desc">
+                            Evaluasi karakter SQL berbahaya menggunakan regex
+                            pelindung
+                        </div>
                     </div>
-                    <div class="ts-time">{{ metrics.pre_filter_ms | round(3) }} ms</div>
+                    <div class="ts-time">
+                        {{ metrics.pre_filter_ms | round(3) }} ms
+                    </div>
                 </div>
 
                 {% if metrics.ml_ms > 0 %}
                 <div class="telemetry-step">
                     <div class="ts-icon">🧠</div>
                     <div class="ts-info">
-                        <div class="ts-title">Klasifikasi Intelijen (ML Model Inference)</div>
-                        <div class="ts-desc">Vektorisasi teks dan prediksi probabilitas dengan Naive Bayes</div>
+                        <div class="ts-title">
+                            Klasifikasi Intelijen (ML Model Inference)
+                        </div>
+                        <div class="ts-desc">
+                            Vektorisasi teks dan prediksi probabilitas dengan
+                            Naive Bayes
+                        </div>
                     </div>
                     <div class="ts-time">{{ metrics.ml_ms | round(3) }} ms</div>
                 </div>
@@ -371,19 +416,52 @@
                 <div class="telemetry-step">
                     <div class="ts-icon">🛡️</div>
                     <div class="ts-info">
-                        <div class="ts-title">Pengambilan Keputusan (Block Verdict)</div>
-                        <div class="ts-desc">Sistem memblokir koneksi otomatis dan mengembalikan HTTP 403</div>
+                        <div class="ts-title">
+                            Pengambilan Keputusan (Block Verdict)
+                        </div>
+                        <div class="ts-desc">
+                            Sistem memblokir koneksi otomatis dan mengembalikan
+                            HTTP 403
+                        </div>
                     </div>
-                    <div class="ts-time">{{ metrics.decision_ms | round(3) }} ms</div>
+                    <div class="ts-time">
+                        {{ metrics.decision_ms | round(3) }} ms
+                    </div>
                 </div>
             </div>
             <!-- Sent Input Section -->
             {% if metrics and (metrics.username_val or metrics.password_val) %}
-            <div class="mt-4 pt-3" style="border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+            <div
+                class="mt-4 pt-3"
+                style="border-top: 1px dashed rgba(255, 255, 255, 0.1)"
+            >
                 <div class="d-flex align-items-center mb-3">
-                    <span style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 8px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--brand-danger);">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <span
+                        style="
+                            font-size: 0.9rem;
+                            font-weight: 700;
+                            color: var(--text-primary);
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 8px;
+                        "
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            style="color: var(--brand-danger)"
+                        >
+                            <path
+                                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                            ></path>
                             <polyline points="14 2 14 8 20 8"></polyline>
                             <line x1="16" y1="13" x2="8" y2="13"></line>
                             <line x1="16" y1="17" x2="8" y2="17"></line>
@@ -394,15 +472,79 @@
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 12px;">
-                            <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px;">Username Input</div>
-                            <pre style="margin: 0; font-family: var(--font-mono); font-size: 0.85rem; color: #ff5555; white-space: pre-wrap; word-break: break-all; background: transparent; border: none; padding: 0;">{{ metrics.username_val }}</pre>
+                        <div
+                            style="
+                                background: rgba(0, 0, 0, 0.25);
+                                border: 1px solid rgba(255, 255, 255, 0.05);
+                                border-radius: 8px;
+                                padding: 12px;
+                            "
+                        >
+                            <div
+                                style="
+                                    font-size: 0.72rem;
+                                    color: var(--text-secondary);
+                                    text-transform: uppercase;
+                                    font-weight: 700;
+                                    margin-bottom: 6px;
+                                    letter-spacing: 0.5px;
+                                "
+                            >
+                                Username Input
+                            </div>
+                            <pre
+                                style="
+                                    margin: 0;
+                                    font-family: var(--font-mono);
+                                    font-size: 0.85rem;
+                                    color: #ff5555;
+                                    white-space: pre-wrap;
+                                    word-break: break-all;
+                                    background: transparent;
+                                    border: none;
+                                    padding: 0;
+                                "
+                            >
+{{ metrics.username_val }}</pre
+                            >
                         </div>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 12px;">
-                            <div style="font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px;">Password Input</div>
-                            <pre style="margin: 0; font-family: var(--font-mono); font-size: 0.85rem; color: #ff5555; white-space: pre-wrap; word-break: break-all; background: transparent; border: none; padding: 0;">{{ metrics.password_val }}</pre>
+                        <div
+                            style="
+                                background: rgba(0, 0, 0, 0.25);
+                                border: 1px solid rgba(255, 255, 255, 0.05);
+                                border-radius: 8px;
+                                padding: 12px;
+                            "
+                        >
+                            <div
+                                style="
+                                    font-size: 0.72rem;
+                                    color: var(--text-secondary);
+                                    text-transform: uppercase;
+                                    font-weight: 700;
+                                    margin-bottom: 6px;
+                                    letter-spacing: 0.5px;
+                                "
+                            >
+                                Password Input
+                            </div>
+                            <pre
+                                style="
+                                    margin: 0;
+                                    font-family: var(--font-mono);
+                                    font-size: 0.85rem;
+                                    color: #ff5555;
+                                    white-space: pre-wrap;
+                                    word-break: break-all;
+                                    background: transparent;
+                                    border: none;
+                                    padding: 0;
+                                "
+                            >
+{{ metrics.password_val }}</pre
+                            >
                         </div>
                     </div>
                 </div>
@@ -410,12 +552,20 @@
             {% endif %}
         </div>
     </div>
-    {% endif %}
-    {% if IS_DEBUG == '1' %}
+    {% endif %} {% if IS_DEBUG == '1' %}
     <div class="report-card">
         <div class="report-header">
             <span class="report-header-title">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="12" y1="16" x2="12" y2="12"></line>
                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -424,15 +574,20 @@
             </span>
             <span class="report-badge">Intrusion Prevention</span>
         </div>
-        
+
         <div class="report-body">
             <div class="report-row">
                 <span class="report-key">Kode Masalah</span>
-                <span class="report-val" style="color: var(--brand-danger);">HTTP 403 (FORBIDDEN)</span>
+                <span class="report-val" style="color: var(--brand-danger)"
+                    >HTTP 403 (FORBIDDEN)</span
+                >
             </div>
             <div class="report-row">
                 <span class="report-key">Alamat IP Klien</span>
-                <span class="report-val">{{ request.headers.get('X-Forwarded-For', request.remote_addr) }}</span>
+                <span class="report-val"
+                    >{{ request.headers.get('X-Forwarded-For',
+                    request.remote_addr) }}</span
+                >
             </div>
             <div class="report-row">
                 <span class="report-key">Metode Permintaan</span>
@@ -448,7 +603,9 @@
             </div>
             <div class="report-row">
                 <span class="report-key">Status Proteksi</span>
-                <span class="report-val" style="color: var(--brand-success);">SQLi ML Guard Active</span>
+                <span class="report-val" style="color: var(--brand-success)"
+                    >SQLi ML Guard Active</span
+                >
             </div>
         </div>
     </div>
@@ -456,8 +613,20 @@
 
     <!-- Action Navigation Buttons -->
     <div class="action-row">
-        <a href="{{ url_for('index') }}" class="btn-custom btn-custom-secondary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <a
+            href="{{ url_for('index') }}"
+            class="btn-custom btn-custom-secondary"
+        >
+            <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            >
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
@@ -465,20 +634,25 @@
         </a>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function () {
         // Generate current timestamp in human readable format
         const now = new Date();
-        const formattedDate = now.getUTCFullYear() + '-' + 
-            String(now.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-            String(now.getUTCDate()).padStart(2, '0') + ' ' + 
-            String(now.getUTCHours()).padStart(2, '0') + ':' + 
-            String(now.getUTCMinutes()).padStart(2, '0') + ':' + 
-            String(now.getUTCSeconds()).padStart(2, '0') + ' UTC';
-        
+        const formattedDate =
+            now.getUTCFullYear() +
+            "-" +
+            String(now.getUTCMonth() + 1).padStart(2, "0") +
+            "-" +
+            String(now.getUTCDate()).padStart(2, "0") +
+            " " +
+            String(now.getUTCHours()).padStart(2, "0") +
+            ":" +
+            String(now.getUTCMinutes()).padStart(2, "0") +
+            ":" +
+            String(now.getUTCSeconds()).padStart(2, "0") +
+            " UTC";
+
         document.getElementById("timestamp-val").textContent = formattedDate;
     });
 </script>
